@@ -60,7 +60,7 @@ void constantSpeed(unsigned long elapsedTime, uint16_t slowdownFactor) {
 }
 
 void oscillating(unsigned long elapsedTime, uint16_t slowdownFactor) {
-  int32_t speed = (1000LL * sin(2 * PI * elapsedTime / 5000.0) * slowdownFactor) >> 10;
+  int32_t speed = static_cast<int32_t>((1000LL * sin(2 * PI * elapsedTime / 5000.0) * slowdownFactor)) >> 10;
   stepper.setSpeed(speed);
 }
 
