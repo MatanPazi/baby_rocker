@@ -2,12 +2,13 @@
 #include <AccelStepper.h>
 
 // Pin definitions
-const int ROTARY_PINS[5] = {2, 4, 5, 12, 13};
+const int ROTARY_PINS[4] = {18, 5, 17, 16};
 const int ULTRASONIC_TRIG_PIN = 14;
-const int ULTRASONIC_ECHO_PIN = 15;
+const int ULTRASONIC_ECHO_PIN = 12;
 const int SOUND_SENSOR_PIN = 34;
-const int STEPPER_STEP_PIN = 16;
-const int STEPPER_DIR_PIN = 17;
+const int STEPPER_STEP_PIN = 39;
+const int STEPPER_DIR_PIN = 36;
+const int ON_OFF_PIN = 19;
 
 // Constants
 const unsigned long DEBOUNCE_DELAY = 200; // 200ms debounce time
@@ -216,3 +217,13 @@ void updateStepperMotion(unsigned long currentMillis) {
     Serial.println("Motion profile completed and stopped");
   }
 }
+
+
+/* TODO:
+1. Add ON/OFF button:
+    If in motion, stops immediatley (Set ENBL pin LOW or HIGH)
+    Otherwise, starts the motion based on selected state.
+2. Require back and forth motion of the stepper motor, not driven by simply changing speed/acceleration.
+3. When first turned on, go to initial position as determined by position sensor (Closed loop) when first commanded to move, move slowly in this phase, add timeout.
+4. Add off state, if rotary switch inputs are 0 (None are connected) disable stepper (ENBL = LOW/HIGH)
+*/
