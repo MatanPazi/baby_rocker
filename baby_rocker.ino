@@ -8,7 +8,7 @@ const int ULTRASONIC_ECHO_PIN = 12;
 const int SOUND_SENSOR_PIN = 34;
 const int STEPPER_STEP_PIN = 39;
 const int STEPPER_DIR_PIN = 36;
-const int ON_OFF_PIN = 19;
+const int DIGITAL_INPUT_PIN = 19;
 
 // Constants
 const unsigned long DEBOUNCE_DELAY = 200; // 200ms debounce time
@@ -20,6 +20,8 @@ const unsigned long PROFILE_DURATION = 600000; // 10 minutes in milliseconds
 const unsigned long SLOWDOWN_DURATION = 32768; // 2^15 milliseconds (~32.8 seconds)
 const unsigned long SLOWDOWN_SHIFT = 15; // log2(SLOWDOWN_DURATION)
 const float SOUND_THRESHOLD = 500;
+const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 50;
+
 
 
 // Variables
@@ -31,6 +33,9 @@ int readState = 0;
 int currentRotaryState = 0;
 float distance = 0;
 float soundLevel = 0;
+volatile bool digitalInputState = false;
+unsigned long lastDigitalInputCheck = 0;
+
 
 // Stepper motor setup
 AccelStepper stepper(AccelStepper::DRIVER, STEPPER_STEP_PIN, STEPPER_DIR_PIN);
@@ -145,6 +150,12 @@ void sensorTask(void *pvParameters) {
       readSoundLevel();
       lastSoundCheck = currentMillis;
     }
+
+    if (currentMillis - lastDigitalInputCheck >= DIGITAL_INPUT_CHECK_INTERVAL) {
+        checkDigitalInput();
+        lastDigitalInputCheck = currentMillis;
+    }
+    
     vTaskDelay(1); // Yield to other tasks
   }
 }
@@ -212,6 +223,18 @@ void readSoundLevel() {
   if (soundLevel > SOUND_THRESHOLD) {
     Serial.println("Loud sound detected!");
   }
+}
+
+void checkDigitalInput() {
+    // Read the digital input (Assuming active low)
+    bool currentState = !digitalRead(DIGITAL_INPUT_PIN);
+    
+    // Update the global variable if the state has changed
+    if (currentState != digitalInputState) {
+        digitalInputState = currentState;
+        Serial.print("Digital input state changed to: ");
+        Serial.println(digitalInputState ? "Pressed" : "Released");
+    }
 }
 
 void updateStepperProfile(int profileIndex) {
