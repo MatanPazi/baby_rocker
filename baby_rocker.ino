@@ -11,7 +11,7 @@ const int STEPPER_DIR_PIN = 36;
 const int DIGITAL_INPUT_PIN = 19;
 
 // Constants
-const unsigned long DEBOUNCE_DELAY = 200; // 200ms debounce time
+const unsigned long DEBOUNCE_CNTR = 3;
 unsigned long lastDebounceTime = 0;
 const unsigned long ROTARY_CHECK_INTERVAL = 100;
 const unsigned long DISTANCE_CHECK_INTERVAL = 10;
@@ -162,43 +162,46 @@ void sensorTask(void *pvParameters) {
 }
 
 void checkRotarySwitch() {
-  int currentRead = 0;
+  int currentState = 0;
   int connectedInputs = 0;
+  static int debounceCntr = 0;
+  static bool prevState = 0;
+  bool filtState = 0;
   
   // Read all inputs simultaneously
-  currentRead = (!digitalRead(ROTARY_PINS[0]))     |
-                (!digitalRead(ROTARY_PINS[1]) << 1) |
-                (!digitalRead(ROTARY_PINS[2]) << 2) |              
-                (!digitalRead(ROTARY_PINS[3]) << 3);
+  currentState = (!digitalRead(ROTARY_PINS[0]))      |
+                 (!digitalRead(ROTARY_PINS[1]) << 1) |
+                 (!digitalRead(ROTARY_PINS[2]) << 2) |              
+                 (!digitalRead(ROTARY_PINS[3]) << 3);
 
   // Count connected inputs using bit manipulation
-  connectedInputs = __builtin_popcount(currentRead);
+  connectedInputs = __builtin_popcount(currentState);
   
   // Check if the read state is valid (only one input connected)
   if (connectedInputs > 1) {
-    currentRead = lastStableState; // Invalid state, use last stable state
+    currentState = currentRotaryState; // Invalid state, use last stable state
+  }
+  else if (currentState != currentRotaryState) {
+    if (prevState == currentState)  {
+      debounceCntr++;
+      if (debounceCntr > DEBOUNCE_CNTR)   {
+        filtState = currentState;
+        debounceCntr = 0;
+      }
+    }
   }
   
-  // If the state has changed, reset the debounce timer
-  if (currentRead != readState) {
-    lastDebounceTime = millis();
-  }
+  prevState = currentState;
   
-  readState = currentRead;
-  
-  // Check if enough time has passed for debounce
-  if ((millis() - lastDebounceTime) > DEBOUNCE_DELAY) {
-    // If the state is stable and different from the last stable state, update
-    if (readState != lastStableState) {
-      lastStableState = readState;
-      currentRotaryState = lastStableState;
+  // If the state is stable and different from the last stable state, update
+  if (filtState != currentRotaryState) {
+      currentRotaryState = filtState;
       
       Serial.print("Rotary switch state: ");
       Serial.println(currentRotaryState);
       
       // Update stepper profile when rotary switch changes
       updateStepperProfile(currentRotaryState % NUM_PROFILES);
-    }
   }
 }
 
@@ -227,19 +230,27 @@ void readSoundLevel() {
 }
 
 void checkDigitalInput() {
-  static int btn_cntr = 0;
+  static int debounceCntr = 0;
   static bool prevState = 0;
-  bool filt_state = 0;
+  bool filtState = 0;
   // Read the digital input (Assuming active low)
   bool currentState = !digitalRead(DIGITAL_INPUT_PIN);
-  if (prevState != currState)  {
-    filt_state = currentState
-    btn_cntr++;
+
+  if (currentState != digitalInputState)   {
+    if (prevState == currentState)  {
+      debounceCntr++;
+      if (debounceCntr > DEBOUNCE_CNTR)   {
+        filtState = currentState;
+        debounceCntr = 0;
+      }
+    }
   }
+
+  prevState = currentState;
   
   // Update the global variable if the state has changed
-  if (currentState != digitalInputState) {
-      digitalInputState = currentState;
+  if (filtState != digitalInputState) {
+      digitalInputState = filtState;
       if (initializationFlag) {
           performHomingSequence();
           initializationFlag = false;
