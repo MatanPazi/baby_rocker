@@ -99,7 +99,7 @@ unsigned long profileStartTime = 0;
 void setup() {
   Serial.begin(115200);
   
-  for (int i = 0; i < 5; i++) {
+  for (int i = 0; i < 4; i++) {
     pinMode(ROTARY_PINS[i], INPUT_PULLUP);
   }
   
@@ -140,15 +140,14 @@ void checkRotarySwitch() {
   // Read all inputs simultaneously
   currentRead = (!digitalRead(ROTARY_PINS[0]))     |
                 (!digitalRead(ROTARY_PINS[1]) << 1) |
-                (!digitalRead(ROTARY_PINS[2]) << 2) |
-                (!digitalRead(ROTARY_PINS[3]) << 3) |
-                (!digitalRead(ROTARY_PINS[4]) << 4);
+                (!digitalRead(ROTARY_PINS[2]) << 2) |              
+                (!digitalRead(ROTARY_PINS[3]) << 3);
 
   // Count connected inputs using bit manipulation
   connectedInputs = __builtin_popcount(currentRead);
   
   // Check if the read state is valid (only one input connected)
-  if (connectedInputs != 1) {
+  if (connectedInputs > 1) {
     currentRead = lastStableState; // Invalid state, use last stable state
   }
   
