@@ -35,6 +35,7 @@ float distance = 0;
 float soundLevel = 0;
 volatile bool digitalInputState = false;
 unsigned long lastDigitalInputCheck = 0;
+volatile bool initializationFlag = true;
 
 
 // Stepper motor setup
@@ -226,15 +227,26 @@ void readSoundLevel() {
 }
 
 void checkDigitalInput() {
-    // Read the digital input (Assuming active low)
-    bool currentState = !digitalRead(DIGITAL_INPUT_PIN);
-    
-    // Update the global variable if the state has changed
-    if (currentState != digitalInputState) {
-        digitalInputState = currentState;
-        Serial.print("Digital input state changed to: ");
-        Serial.println(digitalInputState ? "Pressed" : "Released");
-    }
+  static int btn_cntr = 0;
+  static bool prevState = 0;
+  bool filt_state = 0;
+  // Read the digital input (Assuming active low)
+  bool currentState = !digitalRead(DIGITAL_INPUT_PIN);
+  if (prevState != currState)  {
+    filt_state = currentState
+    btn_cntr++;
+  }
+  
+  // Update the global variable if the state has changed
+  if (currentState != digitalInputState) {
+      digitalInputState = currentState;
+      if (initializationFlag) {
+          performHomingSequence();
+          initializationFlag = false;
+      }
+      Serial.print("Digital input state changed to: ");
+      Serial.println(digitalInputState ? "Pressed" : "Released");
+  }
 }
 
 void updateStepperProfile(int profileIndex) {
