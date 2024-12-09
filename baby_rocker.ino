@@ -108,29 +108,45 @@ void setup() {
   
   stepper.setMaxSpeed(1000);
   stepper.setAcceleration(500);
+
+  // Create tasks for motor control and sensor reading
+  xTaskCreatePinnedToCore(motorTask, "Motor Task", 10000, NULL, 1, NULL, CONFIG_FREERTOS_UNICORE);
+  xTaskCreatePinnedToCore(sensorTask, "Sensor Task", 10000, NULL, 1, NULL, CONFIG_FREERTOS_UNICORE);  
 }
 
 void loop() {
-  unsigned long currentMillis = millis();
-  
-  if (currentMillis - lastRotaryCheck >= ROTARY_CHECK_INTERVAL) {
-    checkRotarySwitch();
-    lastRotaryCheck = currentMillis;
+    // The main loop can be left empty or used for other tasks if needed.
+}
+
+void motorTask(void *pvParameters) {
+    while (true) {
+        updateStepperMotion();
+        stepper.runSpeed(); // Non-blocking call to run the stepper motor
+
+        vTaskDelay(1); // Yield to other tasks
+    }
+}
+
+void sensorTask(void *pvParameters) {
+  while (true) {
+    unsigned long currentMillis = millis();
+    
+    if (currentMillis - lastRotaryCheck >= ROTARY_CHECK_INTERVAL) {
+      checkRotarySwitch();
+      lastRotaryCheck = currentMillis;
+    }
+    
+    if (currentMillis - lastDistanceCheck >= DISTANCE_CHECK_INTERVAL) {
+      readDistance();
+      lastDistanceCheck = currentMillis;
+    }
+    
+    if (currentMillis - lastSoundCheck >= SOUND_CHECK_INTERVAL) {
+      readSoundLevel();
+      lastSoundCheck = currentMillis;
+    }
+    vTaskDelay(1); // Yield to other tasks
   }
-  
-  if (currentMillis - lastDistanceCheck >= DISTANCE_CHECK_INTERVAL) {
-    readDistance();
-    lastDistanceCheck = currentMillis;
-  }
-  
-  if (currentMillis - lastSoundCheck >= SOUND_CHECK_INTERVAL) {
-    readSoundLevel();
-    lastSoundCheck = currentMillis;
-  }
-  
-  // Update and run stepper motor
-  updateStepperMotion(currentMillis);
-  stepper.runSpeed();
 }
 
 void checkRotarySwitch() {
