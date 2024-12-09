@@ -38,6 +38,7 @@ float soundLevel = 0.0;
 volatile bool digitalInputState = false;
 unsigned long lastDigitalInputCheck = 0;
 volatile bool initializationFlag = true;
+volatile bool readDistanceFlag = true;
 volatile bool motionActive = false;
 unsigned long profileStartTime = 0;
 
@@ -62,8 +63,8 @@ void setup() {
   stepper.setAcceleration(500);
 
   // Create tasks for motor control and sensor reading
-  xTaskCreatePinnedToCore(motorTask, "Motor Task", 10000, NULL, 1, NULL, CONFIG_FREERTOS_UNICORE);
-  xTaskCreatePinnedToCore(sensorTask, "Sensor Task", 10000, NULL, 1, NULL, CONFIG_FREERTOS_UNICORE);  
+  xTaskCreatePinnedToCore(motorTask, "Motor Task", 10000, NULL, 2, NULL, 0);    // Higher priority
+  xTaskCreatePinnedToCore(sensorTask, "Sensor Task", 10000, NULL, 1, NULL, 1);  
 }
 
 void loop() {
@@ -72,11 +73,12 @@ void loop() {
 
 void motorTask(void *pvParameters) {
     while (true) {
-        if (motionActive) {
-            updateStepperMotion();
-            stepper.run();
-        }
-        vTaskDelay(1);
+      // Move only if commanded to and if distance finished reading
+      if (motionActive && !readDistanceFlag) {
+        updateStepperMotion();
+        stepper.run();
+      }
+      vTaskDelay(1);
     }
 }
 
@@ -84,15 +86,14 @@ void sensorTask(void *pvParameters) {
   while (true) {
     unsigned long currentMillis = millis();
     
+    if (initializationFlag || readDistanceFlag) {
+      readDistance();
+    }    
+    
     if (currentMillis - lastRotaryCheck >= ROTARY_CHECK_INTERVAL) {
       checkRotarySwitch();
       lastRotaryCheck = currentMillis;
-    }
-    
-    if (currentMillis - lastDistanceCheck >= DISTANCE_CHECK_INTERVAL) {
-      readDistance();
-      lastDistanceCheck = currentMillis;
-    }
+    }  
     
     if (currentMillis - lastSoundCheck >= SOUND_CHECK_INTERVAL) {
       readSoundLevel();
@@ -159,12 +160,13 @@ void readDistance() {
   distance = duration * 0.034 / 2;
   pos_in_steps = (long)(distance * DISTANCE_TO_STEPS);
   
+  readDistanceFlag = false;
   Serial.print("Distance: ");
   Serial.print(distance);
   Serial.println(" cm");
   Serial.print("Step position: ");
   Serial.print(pos_in_steps);
-  Serial.println(" steps");
+  Serial.println(" steps");  
 }
 
 void readSoundLevel() {
@@ -230,6 +232,7 @@ void updateStepperMotion() {
 
     if (stepper.distanceToGo() == 0) {
         stepper.moveTo(stepper.currentPosition() == TOP_POSITION ? BOTTOM_POSITION : TOP_POSITION);
+        readDistanceFlag = true;
     }
 
     stepper.setSpeed(speed);
