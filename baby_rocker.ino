@@ -1,5 +1,5 @@
-#include <Arduino.h>
 #include <AccelStepper.h>
+#include <Arduino.h>
 
 // Pin definitions
 const int ROTARY_PINS[4] = {18, 5, 17, 16};
@@ -9,18 +9,20 @@ const int SOUND_SENSOR_PIN = 34;
 const int STEPPER_STEP_PIN = 39;
 const int STEPPER_DIR_PIN = 36;
 const int DIGITAL_INPUT_PIN = 19;
+const int DRIVER_ENABLE_PIN = 35;       // Low to enable
 
 // Constants
 const unsigned long DEBOUNCE_CNTR = 3;
 unsigned long lastDebounceTime = 0;
 const unsigned long ROTARY_CHECK_INTERVAL = 100;
-const unsigned long DISTANCE_CHECK_INTERVAL = 10;
+const unsigned long DISTANCE_CHECK_INTERVAL = 20;
 const unsigned long SOUND_CHECK_INTERVAL = 20;
 const unsigned long PROFILE_DURATION = 600000; // 10 minutes in milliseconds
-const unsigned long SLOWDOWN_DURATION = 32768; // 2^15 milliseconds (~32.8 seconds)
-const unsigned long SLOWDOWN_SHIFT = 15; // log2(SLOWDOWN_DURATION)
+const unsigned long SLOWDOWN_DURATION = 4096; // 2^12 milliseconds (~4 seconds)
+const unsigned long SLOWDOWN_SHIFT = 12; // log2(SLOWDOWN_DURATION)
 const float SOUND_THRESHOLD = 500;
 const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 50;
+const float DISTANCE_TO_STEPS = 2000;   // 200 steps result in 1 mm
 
 
 
@@ -28,14 +30,16 @@ const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 50;
 unsigned long lastRotaryCheck = 0;
 unsigned long lastDistanceCheck = 0;
 unsigned long lastSoundCheck = 0;
-int lastStableState = 0;
 int readState = 0;
 int currentRotaryState = 0;
-float distance = 0;
-float soundLevel = 0;
+float distance = 0.0;
+long pos_in_steps = 0;
+float soundLevel = 0.0;
 volatile bool digitalInputState = false;
 unsigned long lastDigitalInputCheck = 0;
 volatile bool initializationFlag = true;
+volatile bool motionActive = false;
+unsigned long profileStartTime = 0;
 
 
 // Stepper motor setup
@@ -43,17 +47,6 @@ AccelStepper stepper(AccelStepper::DRIVER, STEPPER_STEP_PIN, STEPPER_DIR_PIN);
 
 // Motion profile function type
 typedef void (*MotionProfile)(unsigned long, uint16_t);
-
-// Helper function for gradual slowdown
-uint16_t calculateSlowdownFactor(unsigned long elapsedTime) {
-  if (elapsedTime <= PROFILE_DURATION) {
-    return 1024; // 1.0 in fixed-point (10 bit precision)
-  } else if (elapsedTime >= PROFILE_DURATION + SLOWDOWN_DURATION) {
-    return 0;
-  } else {
-    return 1024 - (((elapsedTime - PROFILE_DURATION) << 10) >> SLOWDOWN_SHIFT);
-  }
-}
 
 // Motion profile functions
 void standstill(unsigned long elapsedTime, uint16_t slowdownFactor) {
@@ -97,20 +90,20 @@ MotionProfile profiles[NUM_PROFILES] = {
   fastSlowFast
 };
 
-// Variables
-int currentProfile = 0;
-unsigned long profileStartTime = 0;
-
 
 void setup() {
   Serial.begin(115200);
   
+  pinMode(ULTRASONIC_TRIG_PIN, OUTPUT);
+  pinMode(ULTRASONIC_ECHO_PIN, INPUT);  
+  pinMode(DRIVER_ENABLE_PIN, OUTPUT);
+
   for (int i = 0; i < 4; i++) {
     pinMode(ROTARY_PINS[i], INPUT_PULLUP);
   }
-  
-  pinMode(ULTRASONIC_TRIG_PIN, OUTPUT);
-  pinMode(ULTRASONIC_ECHO_PIN, INPUT);
+
+  digitalWrite(DRIVER_ENABLE_PIN, HIGH);
+  digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
   
   stepper.setMaxSpeed(1000);
   stepper.setAcceleration(500);
@@ -126,10 +119,11 @@ void loop() {
 
 void motorTask(void *pvParameters) {
     while (true) {
-        updateStepperMotion();
-        stepper.runSpeed(); // Non-blocking call to run the stepper motor
-
-        vTaskDelay(1); // Yield to other tasks
+        if (motionActive) {
+            updateStepperMotion();
+            stepper.run();
+        }
+        vTaskDelay(1);
     }
 }
 
@@ -153,8 +147,10 @@ void sensorTask(void *pvParameters) {
     }
 
     if (currentMillis - lastDigitalInputCheck >= DIGITAL_INPUT_CHECK_INTERVAL) {
-        checkDigitalInput();
-        lastDigitalInputCheck = currentMillis;
+        if (distance != 0.0) {  // Allow for motion only after reading the distance.
+          checkDigitalInput();
+          lastDigitalInputCheck = currentMillis;
+        }
     }
     
     vTaskDelay(1); // Yield to other tasks
@@ -195,29 +191,27 @@ void checkRotarySwitch() {
   
   // If the state is stable and different from the last stable state, update
   if (filtState != currentRotaryState) {
-      currentRotaryState = filtState;
-      
+      currentRotaryState = filtState;      
       Serial.print("Rotary switch state: ");
       Serial.println(currentRotaryState);
-      
-      // Update stepper profile when rotary switch changes
-      updateStepperProfile(currentRotaryState % NUM_PROFILES);
   }
 }
 
-void readDistance() {
-  digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
-  delayMicroseconds(2);
+void readDistance() {  
   digitalWrite(ULTRASONIC_TRIG_PIN, HIGH);
   delayMicroseconds(10);
   digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
   
   long duration = pulseIn(ULTRASONIC_ECHO_PIN, HIGH);
   distance = duration * 0.034 / 2;
+  pos_in_steps = (long)(distance * DISTANCE_TO_STEPS);
   
   Serial.print("Distance: ");
   Serial.print(distance);
   Serial.println(" cm");
+  Serial.print("Step position: ");
+  Serial.print(pos_in_steps);
+  Serial.println(" steps");
 }
 
 void readSoundLevel() {
@@ -232,15 +226,16 @@ void readSoundLevel() {
 void checkDigitalInput() {
   static int debounceCntr = 0;
   static bool prevState = 0;
-  bool filtState = 0;
+  bool filt_state = 0;
   // Read the digital input (Assuming active low)
   bool currentState = !digitalRead(DIGITAL_INPUT_PIN);
 
+  // Debouncing
   if (currentState != digitalInputState)   {
     if (prevState == currentState)  {
       debounceCntr++;
       if (debounceCntr > DEBOUNCE_CNTR)   {
-        filtState = currentState;
+        filt_state = currentState;
         debounceCntr = 0;
       }
     }
@@ -248,43 +243,90 @@ void checkDigitalInput() {
 
   prevState = currentState;
   
-  // Update the global variable if the state has changed
-  if (filtState != digitalInputState) {
-      digitalInputState = filtState;
-      if (initializationFlag) {
-          performHomingSequence();
-          initializationFlag = false;
+  // Button was pressed post debouncing
+  if (filt_state != digitalInputState) {
+      digitalInputState = filt_state;
+      // If not in motion and a state was selected
+      if ((!motionActive) && (digitalInputState =! 0)) {
+        digitalWrite(DRIVER_ENABLE_PIN, LOW);
+        motionActive = true;
+        profileStartTime = millis();                      
       }
+      // In motion, or an OFF state wasn't selected (Not connected state)
+      else {
+        digitalWrite(DRIVER_ENABLE_PIN, HIGH);
+        motionActive = false;
+      }      
       Serial.print("Digital input state changed to: ");
       Serial.println(digitalInputState ? "Pressed" : "Released");
   }
 }
 
-void updateStepperProfile(int profileIndex) {
-  currentProfile = profileIndex;
-  profileStartTime = millis();
-  Serial.print("Updated to profile: ");
-  Serial.println(currentProfile);
+
+
+void updateStepperMotion() {
+    long currentPosition = stepper.currentPosition();
+    unsigned long elapsedTime = millis() - profileStartTime;
+    
+    int speed = calculateSpeed(currentPosition, elapsedTime);    
+    
+    if (initializationFlag) {
+      stepper.setCurrentPosition(pos_in_steps)
+      stepper.moveTo(BOTTOM_POSITION)
+    }
+
+    if (stepper.distanceToGo() == 0) {
+        stepper.moveTo(stepper.currentPosition() == TOP_POSITION ? BOTTOM_POSITION : TOP_POSITION);
+    }
+
+    stepper.setSpeed(speed);
+    
+    if (elapsedTime >= PROFILE_DURATION + SLOWDOWN_DURATION) {
+        motionActive = false;
+        digitalWrite(DRIVER_ENABLE_PIN, HIGH);
+        Serial.println("Motion completed and stopped");
+    }
 }
 
-// In the updateStepperMotion function
-void updateStepperMotion(unsigned long currentMillis) {
-  unsigned long elapsedTime = currentMillis - profileStartTime;
-  uint16_t slowdownFactor = calculateSlowdownFactor(elapsedTime);
-  profiles[currentProfile](elapsedTime, slowdownFactor);
-  
-  if (slowdownFactor == 0 && currentProfile != 0) { // Don't stop if already in standstill mode
-    stepper.stop();
-    Serial.println("Motion profile completed and stopped");
-  }
+int calculateSpeed(long currentPosition, unsigned long elapsedTime) {
+    int baseSpeed;
+    
+    // Determine base speed based on current profile and direction
+    switch (currentRotaryState) {
+      case 0:
+        baseSpeed = 500; // Constant speed
+        break;
+      case 1:
+        // Different speeds for up and down
+        baseSpeed = (stepper.targetPosition() == TOP_POSITION) ? 700 : 300;
+        break;
+      case 2:
+        // Variable speed based on position
+        baseSpeed = map(currentPosition, BOTTOM_POSITION, TOP_POSITION, 300, 700);
+        break;
+      default:
+        baseSpeed = 500;
+    }
+    
+    // Apply slowdown factor
+    if (elapsedTime > PROFILE_DURATION) {
+        unsigned long slowdownTime = elapsedTime - PROFILE_DURATION;
+        if (slowdownTime >= SLOWDOWN_DURATION) {
+            return 0;
+        }
+
+        if (slowdownTime > SLOWDOWN_DURATION) {
+          baseSpeed = 0;
+        }
+        else {
+          uint32_t slowdownFactor = 1024 - ((slowdownTime << 10) >> SLOWDOWN_SHIFT);
+          baseSpeed = (baseSpeed * slowdownFactor) >> 10;          
+        }
+    }    
+    return baseSpeed;
 }
 
 
 /* TODO:
-1. Add ON/OFF button:
-    If in motion, stops immediatley (Set ENBL pin LOW or HIGH)
-    Otherwise, starts the motion based on selected state.
-2. Require back and forth motion of the stepper motor, not driven by simply changing speed/acceleration.
-3. When first turned on, go to initial position as determined by position sensor (Closed loop) when first commanded to move, move slowly in this phase, add timeout.
-4. Add off state, if rotary switch inputs are 0 (None are connected) disable stepper (ENBL = LOW/HIGH)
+1. Read distance only at initialization, top and bottom position, so as not to block.
 */
