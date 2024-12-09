@@ -41,55 +41,8 @@ volatile bool initializationFlag = true;
 volatile bool motionActive = false;
 unsigned long profileStartTime = 0;
 
-
 // Stepper motor setup
 AccelStepper stepper(AccelStepper::DRIVER, STEPPER_STEP_PIN, STEPPER_DIR_PIN);
-
-// Motion profile function type
-typedef void (*MotionProfile)(unsigned long, uint16_t);
-
-// Motion profile functions
-void standstill(unsigned long elapsedTime, uint16_t slowdownFactor) {
-  stepper.setSpeed(0);
-  stepper.run(); // This will hold the motor's position
-}
-
-void constantSpeed(unsigned long elapsedTime, uint16_t slowdownFactor) {
-  int32_t speed = (1000LL * slowdownFactor) >> 10;
-  stepper.setSpeed(speed);
-}
-
-void oscillating(unsigned long elapsedTime, uint16_t slowdownFactor) {
-  int32_t speed = static_cast<int32_t>((1000LL * sin(2 * PI * elapsedTime / 5000.0) * slowdownFactor)) >> 10;
-  stepper.setSpeed(speed);
-}
-
-void fastSlowFast(unsigned long elapsedTime, uint16_t slowdownFactor) {
-  unsigned long cycleTime = 10000;  // 10-second cycle
-  unsigned long cyclePosition = elapsedTime % cycleTime;
-  int32_t speed;
-  
-  if (cyclePosition < 3000) {
-    speed = 2000;  // Fast for 3 seconds
-  } else if (cyclePosition < 7000) {
-    speed = 500;   // Slow for 4 seconds
-  } else {
-    speed = 2000;  // Fast for 3 seconds
-  }
-  
-  speed = (speed * slowdownFactor) >> 10;
-  stepper.setSpeed(speed);
-}
-
-// Array of motion profiles
-const int NUM_PROFILES = 4;
-MotionProfile profiles[NUM_PROFILES] = {
-  standstill,
-  constantSpeed,
-  oscillating,
-  fastSlowFast
-};
-
 
 void setup() {
   Serial.begin(115200);
