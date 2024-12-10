@@ -17,13 +17,14 @@ unsigned long lastDebounceTime = 0;
 const unsigned long ROTARY_CHECK_INTERVAL = 100;
 const unsigned long DISTANCE_CHECK_INTERVAL = 20;
 const unsigned long SOUND_CHECK_INTERVAL = 20;
-const unsigned long PROFILE_DURATION = 600000; // 10 minutes in milliseconds
-const unsigned long SLOWDOWN_DURATION = 4096; // 2^12 milliseconds (~4 seconds)
-const unsigned long SLOWDOWN_SHIFT = 12; // log2(SLOWDOWN_DURATION)
+const unsigned long PROFILE_DURATION = 600000;      // 10 minutes in milliseconds
+const unsigned long SLOWDOWN_DURATION = 4096;       // 2^12 milliseconds (~4 seconds)
+const unsigned long SLOWDOWN_SHIFT = 12;            // [bits]
 const float SOUND_THRESHOLD = 500;
 const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 50;
-const float DISTANCE_TO_STEPS = 2000;   // 200 steps result in 1 mm
-
+const float DISTANCE_TO_STEPS = 2000;               // 200 steps result in 1 mm
+const unsigned long BOTTOM_POSITION = 20000;        // [Steps]
+const unsigned long TOP_POSITION = 30000;           // [Steps]
 
 
 // Variables
@@ -222,6 +223,7 @@ void checkDigitalInput() {
 void updateStepperMotion() {
     long currentPosition = stepper.currentPosition();
     unsigned long elapsedTime = millis() - profileStartTime;
+    static unsigned long prevElapsedTime = 0;
     
     int speed = calculateSpeed(currentPosition, elapsedTime);    
     
@@ -232,6 +234,9 @@ void updateStepperMotion() {
 
     if (stepper.distanceToGo() == 0) {
         stepper.moveTo(stepper.currentPosition() == TOP_POSITION ? BOTTOM_POSITION : TOP_POSITION);
+        prevElapsedTime = elapsedTime;
+        Serial.print("Elapsed time [ms]: ");
+        Serial.println(elapsedTime - prevElapsedTime);
         readDistanceFlag = true;
     }
 
@@ -239,6 +244,7 @@ void updateStepperMotion() {
     
     if (elapsedTime >= PROFILE_DURATION + SLOWDOWN_DURATION) {
         motionActive = false;
+        prevElapsedTime = 0;
         digitalWrite(DRIVER_ENABLE_PIN, HIGH);
         Serial.println("Motion completed and stopped");
     }
