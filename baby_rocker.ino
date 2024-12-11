@@ -8,23 +8,22 @@ const int ULTRASONIC_ECHO_PIN = 12;
 const int SOUND_SENSOR_PIN = 34;
 const int STEPPER_STEP_PIN = 39;
 const int STEPPER_DIR_PIN = 36;
-const int DIGITAL_INPUT_PIN = 19;
-const int DRIVER_ENABLE_PIN = 35;       // Low to enable
+const int DIGITAL_INPUT_PIN = 19;                       // ON/OFF Button
+const int DRIVER_ENABLE_PIN = 35;                       // Low to enable
 
 // Constants
 const unsigned long DEBOUNCE_CNTR = 3;
-unsigned long lastDebounceTime = 0;
-const unsigned long ROTARY_CHECK_INTERVAL = 100;
-const unsigned long DISTANCE_CHECK_INTERVAL = 20;
-const unsigned long SOUND_CHECK_INTERVAL = 20;
-const unsigned long PROFILE_DURATION = 600000;      // 10 minutes in milliseconds
-const unsigned long SLOWDOWN_DURATION = 4096;       // 2^12 milliseconds (~4 seconds)
-const unsigned long SLOWDOWN_SHIFT = 12;            // [bits]
-const float SOUND_THRESHOLD = 500;
-const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 50;
-const float DISTANCE_TO_STEPS = 2000;               // 200 steps result in 1 mm
-const unsigned long BOTTOM_POSITION = 20000;        // [Steps]
-const unsigned long TOP_POSITION = 30000;           // [Steps]
+const unsigned long ROTARY_CHECK_INTERVAL = 100;        // 100[ms] -> 10Hz
+const unsigned long SOUND_CHECK_INTERVAL = 20;          // 20[ms] -> 50Hz
+const unsigned long PROFILE_DURATION = 600000;          // 10 minutes in milliseconds
+const unsigned long SLOWDOWN_DURATION = 4096;           // 2^12 milliseconds (~4 seconds)
+const unsigned long SLOWDOWN_SHIFT = 12;                // 1 << SLOWDOWN_SHIFT = SLOWDOWN_DURATION
+const float SOUND_THRESHOLD = 500;                      // ***Needs tuning***
+const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 50;  // 50[ms] -> 20Hz
+const float DISTANCE_TO_STEPS = 2000;                   // [steps/cm] (200 steps = 1 mm) ***Needs tuning***
+const unsigned long BOTTOM_POSITION = 20000;            // [Steps]  ***Needs tuning***
+const unsigned long TOP_POSITION = 30000;               // [Steps]  ***Needs tuning***
+const unsigned long PULSE_IN_TIMEOUT = 2000;            // [uS]  ***Needs tuning***
 
 
 // Variables
@@ -60,7 +59,7 @@ void setup() {
   digitalWrite(DRIVER_ENABLE_PIN, HIGH);
   digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
   
-  stepper.setMaxSpeed(1000);
+  stepper.setMaxSpeed(20000);               // Needs tuning
   stepper.setAcceleration(500);
 
   // Create tasks for motor control and sensor reading
@@ -128,9 +127,9 @@ void checkRotarySwitch() {
   // Count connected inputs using bit manipulation
   connectedInputs = __builtin_popcount(currentState);
   
-  // Check if the read state is valid (only one input connected)
+  // Invalid case if connected inputs are greater than 1.
   if (connectedInputs > 1) {
-    currentState = currentRotaryState; // Invalid state, use last stable state
+    currentState = currentRotaryState; 
   }
   else if (currentState != currentRotaryState) {
     if (prevState == currentState)  {
@@ -139,6 +138,9 @@ void checkRotarySwitch() {
         filtState = currentState;
         debounceCntr = 0;
       }
+    }
+    else {
+      debounceCntr = 0;
     }
   }
   
@@ -157,7 +159,7 @@ void readDistance() {
   delayMicroseconds(10);
   digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
   
-  long duration = pulseIn(ULTRASONIC_ECHO_PIN, HIGH);
+  long duration = pulseIn(ULTRASONIC_ECHO_PIN, HIGH, PULSE_IN_TIMEOUT);
   distance = duration * 0.034 / 2;
   pos_in_steps = (long)(distance * DISTANCE_TO_STEPS);
   
@@ -170,9 +172,9 @@ void readDistance() {
   Serial.println(" steps");  
 }
 
+// Need to filter sound?
 void readSoundLevel() {
-  int rawSound = analogRead(SOUND_SENSOR_PIN);
-  soundLevel = map(rawSound, 0, 4095, 0, 1023);
+  int soundLevel = analogRead(SOUND_SENSOR_PIN);
   
   if (soundLevel > SOUND_THRESHOLD) {
     Serial.println("Loud sound detected!");
@@ -195,6 +197,9 @@ void checkDigitalInput() {
         debounceCntr = 0;
       }
     }
+    else {
+      debounceCntr = 0;
+    }
   }
 
   prevState = currentState;
@@ -203,7 +208,7 @@ void checkDigitalInput() {
   if (filt_state != digitalInputState) {
       digitalInputState = filt_state;
       // If not in motion and a state was selected
-      if ((!motionActive) && (digitalInputState =! 0)) {
+      if ((!motionActive) && (digitalInputState != 0)) {
         digitalWrite(DRIVER_ENABLE_PIN, LOW);
         motionActive = true;
         profileStartTime = millis();                      
@@ -228,8 +233,9 @@ void updateStepperMotion() {
     int speed = calculateSpeed(currentPosition, elapsedTime);    
     
     if (initializationFlag) {
-      stepper.setCurrentPosition(pos_in_steps)
-      stepper.moveTo(BOTTOM_POSITION)
+      stepper.setCurrentPosition(pos_in_steps);
+      stepper.moveTo(BOTTOM_POSITION);
+      initializationFlag = false;
     }
 
     if (stepper.distanceToGo() == 0) {
@@ -255,17 +261,18 @@ int calculateSpeed(long currentPosition, unsigned long elapsedTime) {
     
     // Determine base speed based on current profile and direction
     switch (currentRotaryState) {
-      case 0:
-        baseSpeed = 500; // Constant speed
-        break;
-      case 1:
+      case 2:
         // Different speeds for up and down
         baseSpeed = (stepper.targetPosition() == TOP_POSITION) ? 700 : 300;
         break;
-      case 2:
+      case 4:
         // Variable speed based on position
         baseSpeed = map(currentPosition, BOTTOM_POSITION, TOP_POSITION, 300, 700);
         break;
+      case 8:
+        // Variable speed based on position
+        baseSpeed = 800;
+        break;        
       default:
         baseSpeed = 500;
     }
@@ -290,6 +297,5 @@ int calculateSpeed(long currentPosition, unsigned long elapsedTime) {
 
 
 /* TODO:
-Add QA to each function to test it's performance.
-Add step by step guide to run the relevant QA procedures.
+
 */
