@@ -118,7 +118,7 @@ void checkRotarySwitch() {
   static bool prevState = 0;
   bool filtState = 0;
   
-  // Read all inputs simultaneously
+  // Read all inputs simultaneously (Assuming active low)
   currentState = (!digitalRead(ROTARY_PINS[0]))      |
                  (!digitalRead(ROTARY_PINS[1]) << 1) |
                  (!digitalRead(ROTARY_PINS[2]) << 2) |              
@@ -204,19 +204,22 @@ void checkDigitalInput() {
 
   prevState = currentState;
   
-  // Button was pressed post debouncing
+  // Button state has changed post debouncing
   if (filt_state != digitalInputState) {
       digitalInputState = filt_state;
-      // If not in motion and a state was selected
-      if ((!motionActive) && (digitalInputState != 0)) {
-        digitalWrite(DRIVER_ENABLE_PIN, LOW);
-        motionActive = true;
-        profileStartTime = millis();                      
-      }
-      // In motion, or an OFF state wasn't selected (Not connected state)
-      else {
-        digitalWrite(DRIVER_ENABLE_PIN, HIGH);
-        motionActive = false;
+      // Button was pressed
+      if (digitalInputState == true) {
+        // If not in motion and a state was selected
+        if ((!motionActive) && (currentRotaryState != 0)) {
+          digitalWrite(DRIVER_ENABLE_PIN, LOW);
+          motionActive = true;
+          profileStartTime = millis();                      
+        }
+        // In motion, or an OFF state wasn't selected (Not connected state)
+        else {
+          digitalWrite(DRIVER_ENABLE_PIN, HIGH);
+          motionActive = false;
+        }
       }      
       Serial.print("Digital input state changed to: ");
       Serial.println(digitalInputState ? "Pressed" : "Released");
@@ -297,5 +300,5 @@ int calculateSpeed(long currentPosition, unsigned long elapsedTime) {
 
 
 /* TODO:
-
+Add QA testing and step by step guides for tasks and functions.
 */
