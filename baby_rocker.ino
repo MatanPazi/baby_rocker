@@ -290,5 +290,6 @@ int calculateSpeed(long currentPosition, unsigned long elapsedTime) {
 
 
 /* TODO:
-
+Add QA to each function to test it's performance.
+Add step by step guide to run the relevant QA procedures.
 */
