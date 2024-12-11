@@ -290,5 +290,5 @@ int calculateSpeed(long currentPosition, unsigned long elapsedTime) {
 
 
 /* TODO:
-1. Read distance only at initialization, top and bottom position, so as not to block.
+
 */
