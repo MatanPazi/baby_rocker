@@ -41,6 +41,7 @@ volatile bool initializationFlag = true;
 volatile bool readDistanceFlag = true;
 volatile bool motionActive = false;
 unsigned long profileStartTime = 0;
+int debug = 0;
 
 // Stepper motor setup
 AccelStepper stepper(AccelStepper::DRIVER, STEPPER_STEP_PIN, STEPPER_DIR_PIN);
@@ -64,7 +65,56 @@ void setup() {
 
   // Create tasks for motor control and sensor reading
   xTaskCreatePinnedToCore(motorTask, "Motor Task", 10000, NULL, 2, NULL, 0);    // Higher priority
-  xTaskCreatePinnedToCore(sensorTask, "Sensor Task", 10000, NULL, 1, NULL, 1);  
+  xTaskCreatePinnedToCore(sensorTask, "Sensor Task", 10000, NULL, 1, NULL, 1);
+
+  /* 
+  debug = 0 - Not debugging, everything is executed
+  debug = 1 - Checking readDistance
+      Set debug to 1.
+      Upload sketch to ESP32.
+      Read SerialPrint logs.
+      Point sensor at stuff and see results.
+      Should give results in cm and steps assuming a 2000 step per 1 cm ratio.
+
+  debug = 2 - Checking checkRotarySwitch
+      Set debug to 2.
+      Upload sketch to ESP32.
+      Nothing should be printed if switch state isn't changed.
+      Change rotary switch between states.
+      Flip between connected and also not connected states.
+      Move slowly to try to potentially touch to pins simultaneously.
+      Read SerialPrint logs.
+      Something should be printed once only when a state has changed.
+      Results should give values in bits.
+      ROTARY_PINS[4] = {18, 5, 17, 16} -> 
+      If pin 18 is connected, a value of 1 will be printed
+      If pin 5 is connected, a value of 2 will be printed
+      If pin 17 is connected, a value of 4 will be printed
+      If pin 16 is connected, a value of 8 will be printed
+
+  debug = 3 - Checking readSoundLevel
+      Set debug to 3.
+      Upload sketch to ESP32.      
+      Read SerialPrint logs, the noise level should be printed.
+      A value between 0 (Quiet) and 1023 (Loud)      
+      Verify that if the value exceeds SOUND_THRESHOLD (Default = 500), an additional message is printed:
+      'Loud sound detected!'
+
+  debug = 4 - Checking checkDigitalInput
+      Set debug to 4.
+      Upload sketch to ESP32.      
+      Start readhing serial log.
+      Nothing should be printed if the ON/OFF experienced no change in state.
+      Press the button for a second and release.
+      2 messages should be printed ('Pressed', then 'Released')
+      Continue pressing and releasing the button.
+      Shorten the pressing time little by little to see if there is a lower limit where a button press stops being detected.     
+
+  debug = 5 - Checking motorTask
+  */
+
+  debug = 0;
+
 }
 
 void loop() {
@@ -73,10 +123,12 @@ void loop() {
 
 void motorTask(void *pvParameters) {
     while (true) {
-      // Move only if commanded to and if distance finished reading
-      if (motionActive && !readDistanceFlag) {
-        updateStepperMotion();
-        stepper.run();
+      if (debug == 5 || debug == 0) {    
+        // Move only if commanded to and if distance finished reading
+        if ((motionActive && !readDistanceFlag) || debug = 5) {
+          updateStepperMotion();
+          stepper.run();
+        }
       }
       vTaskDelay(1);
     }
@@ -85,32 +137,40 @@ void motorTask(void *pvParameters) {
 void sensorTask(void *pvParameters) {
   while (true) {
     unsigned long currentMillis = millis();
+    if (debug == 1 || debug == 0) {
+      if (initializationFlag || readDistanceFlag || debug == 1) {
+        readDistance();
+      }
+    }
+    if (debug == 2 || debug == 0) {    
+      if (currentMillis - lastRotaryCheck >= ROTARY_CHECK_INTERVAL) {
+        checkRotarySwitch();
+        lastRotaryCheck = currentMillis;
+      }  
+    }
     
-    if (initializationFlag || readDistanceFlag) {
-      readDistance();
-    }    
-    
-    if (currentMillis - lastRotaryCheck >= ROTARY_CHECK_INTERVAL) {
-      checkRotarySwitch();
-      lastRotaryCheck = currentMillis;
-    }  
-    
-    if (currentMillis - lastSoundCheck >= SOUND_CHECK_INTERVAL) {
-      readSoundLevel();
-      lastSoundCheck = currentMillis;
+    if (debug == 3 || debug == 0) {    
+      if (currentMillis - lastSoundCheck >= SOUND_CHECK_INTERVAL) {
+        readSoundLevel();
+        lastSoundCheck = currentMillis;
+      }
     }
 
-    if (currentMillis - lastDigitalInputCheck >= DIGITAL_INPUT_CHECK_INTERVAL) {
-        if (distance != 0.0) {  // Allow for motion only after reading the distance.
-          checkDigitalInput();
-          lastDigitalInputCheck = currentMillis;
-        }
+    if (debug == 4 || debug == 0) {    
+      if (currentMillis - lastDigitalInputCheck >= DIGITAL_INPUT_CHECK_INTERVAL) {
+          if (distance != 0.0 || debug == 4) {  // Allow for motion only after reading the distance.
+            checkDigitalInput();
+            lastDigitalInputCheck = currentMillis;
+          }
+      }
     }
-    
+
     vTaskDelay(1); // Yield to other tasks
   }
 }
 
+/* Detects changed in the rotary switch.
+Updates currentRotaryState and prints the change in state */
 void checkRotarySwitch() {
   int currentState = 0;
   int connectedInputs = 0;
@@ -154,6 +214,7 @@ void checkRotarySwitch() {
   }
 }
 
+/* Reads distance measurements and prints the distance in cm and steps */
 void readDistance() {  
   digitalWrite(ULTRASONIC_TRIG_PIN, HIGH);
   delayMicroseconds(10);
