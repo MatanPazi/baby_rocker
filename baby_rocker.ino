@@ -61,7 +61,7 @@ void setup() {
   digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
   
   stepper.setMaxSpeed(20000);               // Needs tuning
-  stepper.setAcceleration(500);
+  stepper.setAcceleration(500);             // Needs tuning
 
   // Create tasks for motor control and sensor reading
   xTaskCreatePinnedToCore(motorTask, "Motor Task", 10000, NULL, 2, NULL, 0);    // Higher priority
@@ -111,9 +111,22 @@ void setup() {
       Shorten the pressing time little by little to see if there is a lower limit where a button press stops being detected.     
 
   debug = 5 - Checking motorTask
+      * Must first measure distance at bottom and top positions and set BOTTOM_POSITION and TOP_POSITION values. 
+      And move mechanism to middle position *
+
+      Set debug to 5.
+      Upload sketch to ESP32.
+      Start readhing serial log.
+      Motor should start moving immediately from current position to bottom.
+      Once reaching bottom it'll move to top and repeat.
+      Each time it reaches the top or bottom it will print the elapsed time from previous target (Top or bottom)
   */
 
-  debug = 0;
+  debug = 1;
+  if (debug == 5) {
+    pos_in_steps = (BOTTOM_POSITION + TOP_POSITION) >> 1;
+  }
+  
 
 }
 
@@ -288,7 +301,7 @@ void checkDigitalInput() {
 }
 
 
-
+/* Setting speed and target position based on time passed since last rotary switch change and current position */
 void updateStepperMotion() {
     long currentPosition = stepper.currentPosition();
     unsigned long elapsedTime = millis() - profileStartTime;
@@ -303,10 +316,10 @@ void updateStepperMotion() {
     }
 
     if (stepper.distanceToGo() == 0) {
-        stepper.moveTo(stepper.currentPosition() == TOP_POSITION ? BOTTOM_POSITION : TOP_POSITION);
-        prevElapsedTime = elapsedTime;
+        stepper.moveTo(stepper.currentPosition() == TOP_POSITION ? BOTTOM_POSITION : TOP_POSITION);        
         Serial.print("Elapsed time [ms]: ");
         Serial.println(elapsedTime - prevElapsedTime);
+        prevElapsedTime = elapsedTime;
         readDistanceFlag = true;
     }
 
