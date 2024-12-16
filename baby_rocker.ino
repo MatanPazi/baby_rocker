@@ -60,7 +60,7 @@ void setup() {
   digitalWrite(DRIVER_ENABLE_PIN, HIGH);
   digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
   
-  stepper.setMaxSpeed(20000);               // Needs tuning
+  stepper.setMaxSpeed(5000);               // Needs tuning
   stepper.setAcceleration(500);             // Needs tuning
 
   // Create tasks for motor control and sensor reading
@@ -82,7 +82,7 @@ void setup() {
       Nothing should be printed if switch state isn't changed.
       Change rotary switch between states.
       Flip between connected and also not connected states.
-      Move slowly to try to potentially touch to pins simultaneously.
+      Move slowly to try to potentially touch two pins simultaneously.
       Read SerialPrint logs.
       Something should be printed once only when a state has changed.
       Results should give values in bits.
@@ -97,14 +97,15 @@ void setup() {
       Upload sketch to ESP32.      
       Read SerialPrint logs, the noise level should be printed.
       A value between 0 (Quiet) and 1023 (Loud)      
+      Make noise.
       Verify that if the value exceeds SOUND_THRESHOLD (Default = 500), an additional message is printed:
       'Loud sound detected!'
 
   debug = 4 - Checking checkDigitalInput
       Set debug to 4.
       Upload sketch to ESP32.      
-      Start readhing serial log.
-      Nothing should be printed if the ON/OFF experienced no change in state.
+      Start reading serial log.
+      Nothing should be printed if the ON/OFF button experienced no change in state.
       Press the button for a second and release.
       2 messages should be printed ('Pressed', then 'Released')
       Continue pressing and releasing the button.
@@ -116,7 +117,7 @@ void setup() {
 
       Set debug to 5.
       Upload sketch to ESP32.
-      Start readhing serial log.
+      Start reading serial log.
       Motor should start moving immediately from current position to bottom.
       Once reaching bottom it'll move to top and repeat.
       Each time it reaches the top or bottom it will print the elapsed time from previous target (Top or bottom)
@@ -237,6 +238,7 @@ void readDistance() {
   distance = duration * 0.034 / 2;
   pos_in_steps = (long)(distance * DISTANCE_TO_STEPS);
   
+
   readDistanceFlag = false;
   Serial.print("Distance: ");
   Serial.print(distance);
@@ -374,5 +376,9 @@ int calculateSpeed(long currentPosition, unsigned long elapsedTime) {
 
 
 /* TODO:
-Add QA testing and step by step guides for tasks and functions.
+Rearange function definition order.
+Set stepper position after reading distance.
+Add harsher constraints to read ON/OFF button on initialization (Harsher then if (distance != 0.0))
+Rename pos_in_steps.
+Make top/bottom positions profile dependent.
 */
