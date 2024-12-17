@@ -382,9 +382,6 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
     // Apply slowdown factor
     if (elapsedTime > PROFILE_DURATION) {
         unsigned long slowdownTime = elapsedTime - PROFILE_DURATION;
-        if (slowdownTime >= SLOWDOWN_DURATION) {
-            return 0;
-        }
 
         if (slowdownTime > SLOWDOWN_DURATION) {
           profile.speed = 0;
