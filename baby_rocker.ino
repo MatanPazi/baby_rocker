@@ -387,7 +387,7 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
         }
 
         if (slowdownTime > SLOWDOWN_DURATION) {
-          baseSpeed = 0;
+          profile.speed = 0;
         }
         else {
           uint32_t slowdownFactor = 1024 - ((slowdownTime << 10) >> SLOWDOWN_SHIFT);
