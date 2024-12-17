@@ -21,7 +21,7 @@ const unsigned long SLOWDOWN_SHIFT = 12;                // 1 << SLOWDOWN_SHIFT =
 const float SOUND_THRESHOLD = 500;                      // ***Needs tuning***
 const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 50;  // 50[ms] -> 20Hz
 const float DISTANCE_TO_STEPS = 2000;                   // [steps/cm] (200 steps = 1 mm) ***Needs tuning***
-const unsigned long INIT_POSITION = 20000;              // [Steps]  ***Needs tuning***
+const unsigned long MIDDLE_POSITION = 20000;              // [Steps]  ***Needs tuning***
 const unsigned long PULSE_IN_TIMEOUT = 2000;            // [uS]  ***Needs tuning***
 
 // Structs
@@ -117,8 +117,7 @@ void setup() {
       Shorten the pressing time little by little to see if there is a lower limit where a button press stops being detected.     
 
   debug = 5 - Checking motorTask
-      * Must first measure distance at bottom and top positions and set BOTTOM_POSITION and TOP_POSITION values. 
-      And move mechanism to middle position *
+      * Must first move mechanism to middle position and measure distance and update MIDDLE_POSITION *
 
       Set debug to 5.
       Upload sketch to ESP32.
@@ -130,7 +129,7 @@ void setup() {
 
   debug = 1;
   if (debug == 5) {
-    posInSteps = INIT_POSITION;
+    stepper.setCurrentPosition(MIDDLE_POSITION);
   }
   
 
@@ -144,7 +143,7 @@ void motorTask(void *pvParameters) {
     while (true) {
       if (debug == 5 || debug == 0) {    
         // Move only if commanded to and if distance finished reading
-        if ((motionActive && !readDistanceFlag) || debug = 5) {
+        if ((motionActive && !readDistanceFlag) || debug == 5) {
           updateStepperMotion();
           stepper.run();
         }
@@ -201,7 +200,6 @@ void readDistance() {
   stepper.setCurrentPosition(posInSteps);
   readDistanceFlag = false;
   if (initializationFlag) {
-    stepper.moveTo(INIT_POSITION);
     initializationFlag = false;
   }
 
@@ -211,10 +209,6 @@ void readDistance() {
   Serial.print("Step position: ");
   Serial.print(posInSteps);
   Serial.println(" steps");  
-  if (initializationFlag) {
-    stepper.moveTo(BOTTOM_POSITION);
-    initializationFlag = false;
-  }
 }
 
 
@@ -383,7 +377,7 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
     if (elapsedTime > PROFILE_DURATION) {
         unsigned long slowdownTime = elapsedTime - PROFILE_DURATION;
 
-        if (slowdownTime > SLOWDOWN_DURATION) {
+        if (slowdownTime >= SLOWDOWN_DURATION) {
           profile.speed = 0;
         }
         else {
