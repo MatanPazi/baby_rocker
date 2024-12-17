@@ -21,10 +21,15 @@ const unsigned long SLOWDOWN_SHIFT = 12;                // 1 << SLOWDOWN_SHIFT =
 const float SOUND_THRESHOLD = 500;                      // ***Needs tuning***
 const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 50;  // 50[ms] -> 20Hz
 const float DISTANCE_TO_STEPS = 2000;                   // [steps/cm] (200 steps = 1 mm) ***Needs tuning***
-const unsigned long BOTTOM_POSITION = 20000;            // [Steps]  ***Needs tuning***
-const unsigned long TOP_POSITION = 30000;               // [Steps]  ***Needs tuning***
+const unsigned long INIT_POSITION = 20000;              // [Steps]  ***Needs tuning***
 const unsigned long PULSE_IN_TIMEOUT = 2000;            // [uS]  ***Needs tuning***
 
+// Structs
+struct profileData {
+    long topPos;
+    long bottomPos;    
+    int speed;
+};
 
 // Variables
 unsigned long lastRotaryCheck = 0;
@@ -33,7 +38,7 @@ unsigned long lastSoundCheck = 0;
 int readState = 0;
 int currentRotaryState = 0;
 float distance = 0.0;
-long pos_in_steps = 0;
+long posInSteps = 0;
 float soundLevel = 0.0;
 volatile bool digitalInputState = false;
 unsigned long lastDigitalInputCheck = 0;
@@ -125,7 +130,7 @@ void setup() {
 
   debug = 1;
   if (debug == 5) {
-    pos_in_steps = (BOTTOM_POSITION + TOP_POSITION) >> 1;
+    posInSteps = INIT_POSITION;
   }
   
 
@@ -191,16 +196,25 @@ void readDistance() {
   
   long duration = pulseIn(ULTRASONIC_ECHO_PIN, HIGH, PULSE_IN_TIMEOUT);
   distance = duration * 0.034 / 2;
-  pos_in_steps = (long)(distance * DISTANCE_TO_STEPS);
+  posInSteps = (long)(distance * DISTANCE_TO_STEPS);
   
-
+  stepper.setCurrentPosition(posInSteps);
   readDistanceFlag = false;
+  if (initializationFlag) {
+    stepper.moveTo(INIT_POSITION);
+    initializationFlag = false;
+  }
+
   Serial.print("Distance: ");
   Serial.print(distance);
   Serial.println(" cm");
   Serial.print("Step position: ");
-  Serial.print(pos_in_steps);
+  Serial.print(posInSteps);
   Serial.println(" steps");  
+  if (initializationFlag) {
+    stepper.moveTo(BOTTOM_POSITION);
+    initializationFlag = false;
+  }
 }
 
 
@@ -310,23 +324,17 @@ void updateStepperMotion() {
     unsigned long elapsedTime = millis() - profileStartTime;
     static unsigned long prevElapsedTime = 0;
     
-    int speed = calculateSpeed(currentPosition, elapsedTime);    
-    
-    if (initializationFlag) {
-      stepper.setCurrentPosition(pos_in_steps);
-      stepper.moveTo(BOTTOM_POSITION);
-      initializationFlag = false;
-    }
+    profileData profile = calculateProfile(currentPosition, elapsedTime);
 
     if (stepper.distanceToGo() == 0) {
-        stepper.moveTo(stepper.currentPosition() == TOP_POSITION ? BOTTOM_POSITION : TOP_POSITION);        
+        stepper.moveTo(stepper.currentPosition() == profile.topPos ? profile.bottomPos : profile.topPos);        
         Serial.print("Elapsed time [ms]: ");
         Serial.println(elapsedTime - prevElapsedTime);
         prevElapsedTime = elapsedTime;
         readDistanceFlag = true;
     }
 
-    stepper.setSpeed(speed);
+    stepper.setSpeed(profile.speed);
     
     if (elapsedTime >= PROFILE_DURATION + SLOWDOWN_DURATION) {
         motionActive = false;
@@ -336,25 +344,39 @@ void updateStepperMotion() {
     }
 }
 
-int calculateSpeed(long currentPosition, unsigned long elapsedTime) {
-    int baseSpeed;
+profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
+    profileData profile;
     
     // Determine base speed based on current profile and direction
     switch (currentRotaryState) {
+      case 1:
+        // Slow speed
+        profile.topPos = 30000;
+        profile.bottomPos = 20000;
+        profile.speed = 100;        
+        break;
       case 2:
-        // Different speeds for up and down
-        baseSpeed = (stepper.targetPosition() == TOP_POSITION) ? 700 : 300;
+        // Different speeds for up and down        
+        profile.topPos = 30000;                
+        profile.bottomPos = 20000;
+        profile.speed = (stepper.targetPosition() == TOP_POSITION) ? 700 : 300;        
         break;
       case 4:
         // Variable speed based on position
-        baseSpeed = map(currentPosition, BOTTOM_POSITION, TOP_POSITION, 300, 700);
+        profile.topPos = 30000;                
+        profile.bottomPos = 20000;
+        profile.speed = map(currentPosition, BOTTOM_POSITION, TOP_POSITION, 300, 700);        
         break;
       case 8:
-        // Variable speed based on position
-        baseSpeed = 800;
+        // Variable speed based on position        
+        profile.topPos = 30000;                
+        profile.bottomPos = 20000;
+        profile.speed = 800;
         break;        
-      default:
-        baseSpeed = 500;
+      default:        
+        profile.topPos = 30000;                
+        profile.bottomPos = 20000;
+        profile.speed = 500;
     }
     
     // Apply slowdown factor
@@ -369,16 +391,13 @@ int calculateSpeed(long currentPosition, unsigned long elapsedTime) {
         }
         else {
           uint32_t slowdownFactor = 1024 - ((slowdownTime << 10) >> SLOWDOWN_SHIFT);
-          baseSpeed = (baseSpeed * slowdownFactor) >> 10;          
+          profile.speed = (profile.speed * slowdownFactor) >> 10;          
         }
     }    
-    return baseSpeed;
+    return profile;
 }
 
 
 /* TODO:
-Set stepper position after reading distance.
 Add harsher constraints to read ON/OFF button on initialization (Harsher then if (distance != 0.0))
-Rename pos_in_steps.
-Make top/bottom positions profile dependent.
 */
