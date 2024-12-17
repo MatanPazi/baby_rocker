@@ -353,13 +353,13 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
         // Different speeds for up and down        
         profile.topPos = 30000;                
         profile.bottomPos = 20000;
-        profile.speed = (stepper.targetPosition() == TOP_POSITION) ? 700 : 300;        
+        profile.speed = (stepper.targetPosition() == profile.topPos) ? 700 : 300;        
         break;
       case 4:
         // Variable speed based on position
         profile.topPos = 30000;                
         profile.bottomPos = 20000;
-        profile.speed = map(currentPosition, BOTTOM_POSITION, TOP_POSITION, 300, 700);        
+        profile.speed = map(currentPosition, profile.bottomPos, profile.topPos, 300, 700);        
         break;
       case 8:
         // Variable speed based on position        
