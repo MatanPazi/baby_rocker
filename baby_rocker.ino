@@ -183,6 +183,27 @@ void sensorTask(void *pvParameters) {
   }
 }
 
+/* Reads distance measurements and prints the distance in cm and steps */
+void readDistance() {  
+  digitalWrite(ULTRASONIC_TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
+  
+  long duration = pulseIn(ULTRASONIC_ECHO_PIN, HIGH, PULSE_IN_TIMEOUT);
+  distance = duration * 0.034 / 2;
+  pos_in_steps = (long)(distance * DISTANCE_TO_STEPS);
+  
+
+  readDistanceFlag = false;
+  Serial.print("Distance: ");
+  Serial.print(distance);
+  Serial.println(" cm");
+  Serial.print("Step position: ");
+  Serial.print(pos_in_steps);
+  Serial.println(" steps");  
+}
+
+
 /* Detects changed in the rotary switch.
 Updates currentRotaryState and prints the change in state */
 void checkRotarySwitch() {
@@ -226,26 +247,6 @@ void checkRotarySwitch() {
       Serial.print("Rotary switch state: ");
       Serial.println(currentRotaryState);
   }
-}
-
-/* Reads distance measurements and prints the distance in cm and steps */
-void readDistance() {  
-  digitalWrite(ULTRASONIC_TRIG_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
-  
-  long duration = pulseIn(ULTRASONIC_ECHO_PIN, HIGH, PULSE_IN_TIMEOUT);
-  distance = duration * 0.034 / 2;
-  pos_in_steps = (long)(distance * DISTANCE_TO_STEPS);
-  
-
-  readDistanceFlag = false;
-  Serial.print("Distance: ");
-  Serial.print(distance);
-  Serial.println(" cm");
-  Serial.print("Step position: ");
-  Serial.print(pos_in_steps);
-  Serial.println(" steps");  
 }
 
 // Need to filter sound?
@@ -376,7 +377,6 @@ int calculateSpeed(long currentPosition, unsigned long elapsedTime) {
 
 
 /* TODO:
-Rearange function definition order.
 Set stepper position after reading distance.
 Add harsher constraints to read ON/OFF button on initialization (Harsher then if (distance != 0.0))
 Rename pos_in_steps.
