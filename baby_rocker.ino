@@ -61,6 +61,8 @@ void setup() {
   for (int i = 0; i < 4; i++) {
     pinMode(ROTARY_PINS[i], INPUT_PULLUP);
   }
+    
+  pinMode(DIGITAL_INPUT_PIN, INPUT_PULLUP);
 
   digitalWrite(DRIVER_ENABLE_PIN, HIGH);
   digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
