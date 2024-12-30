@@ -2,14 +2,14 @@
 #include <Arduino.h>
 
 // Pin definitions
-const int ROTARY_PINS[4] = {18, 5, 17, 16};
-const int ULTRASONIC_TRIG_PIN = 14;
-const int ULTRASONIC_ECHO_PIN = 12;
-const int SOUND_SENSOR_PIN = 34;
-const int STEPPER_STEP_PIN = 39;
-const int STEPPER_DIR_PIN = 36;
-const int DIGITAL_INPUT_PIN = 19;                       // ON/OFF Button
-const int DRIVER_ENABLE_PIN = 35;                       // Low to enable
+const int ROTARY_PINS[4] = {26, 25, 33, 32};
+const int ULTRASONIC_TRIG_PIN = 17;
+const int ULTRASONIC_ECHO_PIN = 16;
+const int SOUND_SENSOR_PIN = 21;
+const int STEPPER_STEP_PIN = 22;
+const int STEPPER_DIR_PIN = 23;
+const int DIGITAL_INPUT_PIN = 27;                       // ON/OFF Button
+const int DRIVER_ENABLE_PIN = 19;                       // Low to enable
 
 // Constants
 const unsigned long DEBOUNCE_CNTR = 3;
@@ -39,7 +39,7 @@ int readState = 0;
 int currentRotaryState = 0;
 float distance = 0.0;
 long posInSteps = 0;
-float soundLevel = 0.0;
+bool soundLevel = 0.0;
 volatile bool digitalInputState = false;
 unsigned long lastDigitalInputCheck = 0;
 volatile bool initializationFlag = true;
@@ -261,10 +261,29 @@ void checkRotarySwitch() {
 
 // Need to filter sound?
 void readSoundLevel() {
-  int soundLevel = analogRead(SOUND_SENSOR_PIN);
+  static int debounceCntr = 0;
+  static bool prevState = 0;
+  bool filt_state = 0;
+  bool currentState = digitalRead(SOUND_SENSOR_PIN);
+
+  // Debouncing
+  if (currentState != soundLevel)   {
+    if (prevState == currentState)  {
+      debounceCntr++;
+      if (debounceCntr > DEBOUNCE_CNTR)   {
+        filt_state = currentState;
+        debounceCntr = 0;
+      }
+    }
+    else {
+      debounceCntr = 0;
+    }
+  }  
   
-  if (soundLevel > SOUND_THRESHOLD) {
-    Serial.println("Loud sound detected!");
+  if (soundLevel != filt_state) {
+    soundLevel = filt_state
+    Serial.print("Sound input changed to: ");
+    Serial.println(soundLevel ? "High sound detected" : "No high sound detected");
   }
 }
 
