@@ -103,10 +103,12 @@ void setup() {
       Set debug to 3.
       Upload sketch to ESP32.      
       Read SerialPrint logs, the noise level should be printed.
-      A value between 0 (Quiet) and 1023 (Loud)      
-      Make noise.
-      Verify that if the value exceeds SOUND_THRESHOLD (Default = 500), an additional message is printed:
-      'Loud sound detected!'
+      Once a noice above the threshold is detected a message will be printed.
+      Once the noise disappears, another message will appear.
+      Tune the threshold as desired using these messages.
+      Then test.
+      Make small noises, strong noises.
+      Leave running for a few minutes to make sure no false positive are triggered.
 
   debug = 4 - Checking checkDigitalInput
       Set debug to 4.
