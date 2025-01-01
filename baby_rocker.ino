@@ -283,7 +283,7 @@ void readSoundLevel() {
   }  
   
   if (soundLevel != filt_state) {
-    soundLevel = filt_state
+    soundLevel = filt_state;
     Serial.print("Sound input changed to: ");
     Serial.println(soundLevel ? "High sound detected" : "No high sound detected");
   }
