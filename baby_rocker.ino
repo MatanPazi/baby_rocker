@@ -3,8 +3,8 @@
 
 // Pin definitions
 const int ROTARY_PINS[4] = {26, 25, 33, 32};
-const int ULTRASONIC_TRIG_PIN = 17;
-const int ULTRASONIC_ECHO_PIN = 16;
+const int ULTRASONIC_TRIG_PIN = 18;
+const int ULTRASONIC_ECHO_PIN = 4;
 const int SOUND_SENSOR_PIN = 21;
 const int STEPPER_STEP_PIN = 22;
 const int STEPPER_DIR_PIN = 23;
