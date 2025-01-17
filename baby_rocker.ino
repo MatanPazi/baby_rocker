@@ -162,6 +162,7 @@ void sensorTask(void *pvParameters) {
     if (debug == 1 || debug == 0) {
       if (initializationFlag || readDistanceFlag || debug == 1) {
         readDistance();
+        delay(60);
       }
     }
     if (debug == 2 || debug == 0) {    
@@ -192,12 +193,14 @@ void sensorTask(void *pvParameters) {
 }
 
 /* Reads distance measurements and prints the distance in cm and steps */
-void readDistance() {  
+void readDistance() { 
+  digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
+  delayMicroseconds(2); 
   digitalWrite(ULTRASONIC_TRIG_PIN, HIGH);
   delayMicroseconds(10);
   digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
   
-  long duration = pulseIn(ULTRASONIC_ECHO_PIN, HIGH, PULSE_IN_TIMEOUT);
+  float duration = pulseIn(ULTRASONIC_ECHO_PIN, HIGH); //, PULSE_IN_TIMEOUT
   distance = duration * 0.034 / 2;
   posInSteps = (long)(distance * DISTANCE_TO_STEPS);
   
@@ -213,6 +216,7 @@ void readDistance() {
   Serial.print("Step position: ");
   Serial.print(posInSteps);
   Serial.println(" steps");  
+
 }
 
 
