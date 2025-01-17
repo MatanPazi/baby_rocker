@@ -1,7 +1,7 @@
 #include <AccelStepper.h>
 #include <Arduino.h>
 #include <Wire.h>
-#include <VL53L0X.h>
+#include <VL53L0X.h>        // by Pololu
 
 VL53L0X distance_sensor;
 
