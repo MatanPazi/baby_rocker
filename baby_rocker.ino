@@ -59,8 +59,8 @@ void setup() {
   Serial.begin(115200);
   Wire.begin(SDA_PIN, SCL_PIN);
 
-  sensor.setTimeout(500);
-  if (!sensor.init())
+  distance_sensor.setTimeout(500);
+  if (!distance_sensor.init())
   {
     Serial.println("Failed to detect and initialize sensor!");
     while (1) {}
