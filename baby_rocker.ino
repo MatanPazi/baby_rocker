@@ -1,12 +1,16 @@
 #include <AccelStepper.h>
 #include <Arduino.h>
+#include <Wire.h>
+#include <VL53L0X.h>
+
+VL53L0X distance_sensor;
 
 // Pin definitions
 const int ROTARY_PINS[4] = {26, 25, 33, 32};
-const int ULTRASONIC_TRIG_PIN = 18;
-const int ULTRASONIC_ECHO_PIN = 4;
-const int SOUND_SENSOR_PIN = 21;
-const int STEPPER_STEP_PIN = 22;
+const int SDA_PIN = 21;
+const int SCL_PIN = 22;
+const int SOUND_SENSOR_PIN = 18;
+const int STEPPER_STEP_PIN = 4;
 const int STEPPER_DIR_PIN = 23;
 const int DIGITAL_INPUT_PIN = 27;                       // ON/OFF Button
 const int DRIVER_ENABLE_PIN = 19;                       // Low to enable
@@ -20,8 +24,8 @@ const unsigned long SLOWDOWN_DURATION = 4096;           // 2^12 milliseconds (~4
 const unsigned long SLOWDOWN_SHIFT = 12;                // 1 << SLOWDOWN_SHIFT = SLOWDOWN_DURATION
 const float SOUND_THRESHOLD = 500;                      // ***Needs tuning***
 const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 50;  // 50[ms] -> 20Hz
-const float DISTANCE_TO_STEPS = 2000;                   // [steps/cm] (200 steps = 1 mm) ***Needs tuning***
-const unsigned long MIDDLE_POSITION = 20000;              // [Steps]  ***Needs tuning***
+const long DISTANCE_TO_STEPS = 200;                     // [steps/cm] (200 steps = 1 mm) ***Needs tuning***
+const unsigned long MIDDLE_POSITION = 20000;            // [Steps]  ***Needs tuning***
 const unsigned long PULSE_IN_TIMEOUT = 2000;            // [uS]  ***Needs tuning***
 
 // Structs
@@ -37,7 +41,7 @@ unsigned long lastDistanceCheck = 0;
 unsigned long lastSoundCheck = 0;
 int readState = 0;
 int currentRotaryState = 0;
-float distance = 0.0;
+long distance = 0;
 long posInSteps = 0;
 bool soundLevel = 0.0;
 volatile bool digitalInputState = false;
@@ -53,9 +57,15 @@ AccelStepper stepper(AccelStepper::DRIVER, STEPPER_STEP_PIN, STEPPER_DIR_PIN);
 
 void setup() {
   Serial.begin(115200);
-  
-  pinMode(ULTRASONIC_TRIG_PIN, OUTPUT);
-  pinMode(ULTRASONIC_ECHO_PIN, INPUT);  
+  Wire.begin(SDA_PIN, SCL_PIN);
+
+  sensor.setTimeout(500);
+  if (!sensor.init())
+  {
+    Serial.println("Failed to detect and initialize sensor!");
+    while (1) {}
+  }  
+   
   pinMode(DRIVER_ENABLE_PIN, OUTPUT);
 
   for (int i = 0; i < 4; i++) {
@@ -65,7 +75,6 @@ void setup() {
   pinMode(DIGITAL_INPUT_PIN, INPUT_PULLUP);
 
   digitalWrite(DRIVER_ENABLE_PIN, HIGH);
-  digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
   
   stepper.setMaxSpeed(5000);               // Needs tuning
   stepper.setAcceleration(500);             // Needs tuning
@@ -180,7 +189,7 @@ void sensorTask(void *pvParameters) {
 
     if (debug == 4 || debug == 0) {    
       if (currentMillis - lastDigitalInputCheck >= DIGITAL_INPUT_CHECK_INTERVAL) {
-          if (distance != 0.0 || debug == 4) {  // Allow for motion only after reading the distance.
+          if (distance != 0 || debug == 4) {  // Allow for motion only after reading the distance.
             checkDigitalInput();
             lastDigitalInputCheck = currentMillis;
           }
@@ -193,12 +202,10 @@ void sensorTask(void *pvParameters) {
 
 /* Reads distance measurements and prints the distance in cm and steps */
 void readDistance() {  
-  digitalWrite(ULTRASONIC_TRIG_PIN, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(ULTRASONIC_TRIG_PIN, LOW);
-  
-  long duration = pulseIn(ULTRASONIC_ECHO_PIN, HIGH, PULSE_IN_TIMEOUT);
-  distance = duration * 0.034 / 2;
+  distance = (long)(distance_sensor.readRangeSingleMillimeters());
+  if (distance_sensor.timeoutOccurred()) {
+    Serial.print(" TIMEOUT");
+  }
   posInSteps = (long)(distance * DISTANCE_TO_STEPS);
   
   stepper.setCurrentPosition(posInSteps);
