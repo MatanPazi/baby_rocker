@@ -421,4 +421,7 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
 
 /* TODO:
 Add harsher constraints to read ON/OFF button on initialization (Harsher then if (distance != 0.0))
+Allow for readings only in certain range.
+Filter readings (Average over 5 samples?)
+Divide result by 10.
 */
