@@ -76,7 +76,7 @@ void setup() {
 
   digitalWrite(DRIVER_ENABLE_PIN, HIGH);
   
-  stepper.setMaxSpeed(5000);               // Needs tuning
+  stepper.setMaxSpeed(5000);                // Needs tuning
   stepper.setAcceleration(500);             // Needs tuning
 
   // Create tasks for motor control and sensor reading
@@ -140,7 +140,6 @@ void setup() {
       Each time it reaches the top or bottom it will print the elapsed time from previous target (Top or bottom)
   */
 
-  debug = 1;
   if (debug == 5) {
     stepper.setCurrentPosition(MIDDLE_POSITION);
   }
@@ -161,7 +160,7 @@ void motorTask(void *pvParameters) {
           stepper.run();
         }
       }
-      vTaskDelay(1);
+      vTaskDelay(10);
     }
 }
 
@@ -196,7 +195,7 @@ void sensorTask(void *pvParameters) {
       }
     }
 
-    vTaskDelay(1); // Yield to other tasks
+    vTaskDelay(10); // Yield to other tasks
   }
 }
 
@@ -229,8 +228,8 @@ void checkRotarySwitch() {
   int currentState = 0;
   int connectedInputs = 0;
   static int debounceCntr = 0;
-  static bool prevState = 0;
-  bool filtState = 0;
+  static int prevState = 0;
+  static int filtState = 0;
   
   // Read all inputs simultaneously (Assuming active low)
   currentState = (!digitalRead(ROTARY_PINS[0]))      |
@@ -272,7 +271,7 @@ void checkRotarySwitch() {
 void readSoundLevel() {
   static int debounceCntr = 0;
   static bool prevState = 0;
-  bool filt_state = 0;
+  static bool filt_state = 0;
   bool currentState = digitalRead(SOUND_SENSOR_PIN);
 
   // Debouncing
@@ -299,7 +298,7 @@ void readSoundLevel() {
 void checkDigitalInput() {
   static int debounceCntr = 0;
   static bool prevState = 0;
-  bool filt_state = 0;
+  static bool filt_state = 0;
   // Read the digital input (Assuming active low)
   bool currentState = !digitalRead(DIGITAL_INPUT_PIN);
 
