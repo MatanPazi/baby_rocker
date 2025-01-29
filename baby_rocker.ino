@@ -24,7 +24,7 @@ const unsigned long SOUND_CHECK_INTERVAL = 20;          // 20[ms] -> 50Hz
 const unsigned long PROFILE_DURATION = 600000;          // 10 minutes in milliseconds
 const unsigned long SLOWDOWN_DURATION = 4096;           // 2^12 milliseconds (~4 seconds)
 const unsigned long SLOWDOWN_SHIFT = 12;                // 1 << SLOWDOWN_SHIFT = SLOWDOWN_DURATION
-const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 10;  // 50[ms] -> 20Hz
+const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 10;  // 10[ms] -> 100Hz
 const long DISTANCE_TO_STEPS = 200;                     // [steps/cm] (200 steps = 1 mm) ***Needs tuning***
 const unsigned long MIDDLE_POSITION = 20000;            // [Steps]  ***Needs tuning***
 const unsigned long PULSE_IN_TIMEOUT = 2000;            // [uS]  ***Needs tuning***
@@ -54,7 +54,7 @@ volatile bool readDistanceFlag = true;
 volatile bool motionActive = false;
 unsigned long profileStartTime = 0;
 int sound_readings[SOUND_SAMPLES];
-int debug = 4;
+int debug = 0;
 
 // Stepper motor setup
 AccelStepper stepper(AccelStepper::DRIVER, STEPPER_STEP_PIN, STEPPER_DIR_PIN);
@@ -282,11 +282,8 @@ void checkRotarySwitch() {
   }
 }
 
-// Need to filter sound?
+/* Detects noises above a certain threshold */
 void readSoundLevel() {
-  static int debounceCntr = 0;
-  static bool prevState = 0;
-  static bool filt_state = 0;
   bool currentState = false;
   static int mov_avg_sum = 0;
   static int index = 0;
@@ -299,26 +296,9 @@ void readSoundLevel() {
   {
     currentState = true;
   }  
- Serial.print("moveavgsum/soundsample: ");
- Serial.println(mov_avg_sum / SOUND_SAMPLES);
-  // Debouncing
-  if (currentState != soundLevel)   {
-    if (prevState == currentState)  {
-      debounceCntr++;
-      if (debounceCntr > DEBOUNCE_CNTR)   {
-        filt_state = currentState;
-        debounceCntr = 0;
-      }
-    }
-    else {
-      debounceCntr = 0;
-    }
-  }  
     
-  prevState = currentState;
-    
-  if (soundLevel != filt_state) {
-    soundLevel = filt_state;
+  if (soundLevel != currentState) {
+    soundLevel = currentState;
     Serial.print("Sound input changed to: ");
     Serial.println(soundLevel ? "High sound detected" : "No high sound detected");
   }
