@@ -14,6 +14,8 @@ const int STEPPER_STEP_PIN = 4;
 const int STEPPER_DIR_PIN = 23;
 const int DIGITAL_INPUT_PIN = 27;                       // ON/OFF Button
 const int DRIVER_ENABLE_PIN = 19;                       // Low to enable
+const int XSHUT_PIN = 15;                               // Reset pin for distance sensor
+
 
 // Constants
 const unsigned long DEBOUNCE_CNTR = 3;
