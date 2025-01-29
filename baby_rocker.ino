@@ -280,7 +280,7 @@ void readSoundLevel() {
   static int debounceCntr = 0;
   static bool prevState = 0;
   static bool filt_state = 0;
-  bool currentState = digitalRead(SOUND_SENSOR_PIN);
+  bool currentState = !digitalRead(SOUND_SENSOR_PIN);        // Active low
 
   // Debouncing
   if (currentState != soundLevel)   {
