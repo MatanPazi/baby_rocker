@@ -296,7 +296,9 @@ void readSoundLevel() {
       debounceCntr = 0;
     }
   }  
-  
+    
+  prevstate = currentState;
+    
   if (soundLevel != filt_state) {
     soundLevel = filt_state;
     Serial.print("Sound input changed to: ");
