@@ -297,7 +297,7 @@ void readSoundLevel() {
     }
   }  
     
-  prevstate = currentState;
+  prevState = currentState;
     
   if (soundLevel != filt_state) {
     soundLevel = filt_state;
