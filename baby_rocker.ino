@@ -59,19 +59,11 @@ void setup() {
   Serial.begin(115200);
   Wire.begin(SDA_PIN, SCL_PIN);
 
-  Wire.beginTransmission(0x29);  // Default VL53L0X address
-  Wire.write(0x00);              // Select register
-  Wire.write(SOFT_RESET_GO2_SOFT_RESET_N);
-  Wire.write(0x00);  // Write 0x00 to initiate soft reset
-  Wire.endTransmission();
-  delay(10);  // Wait for reset to complete
-
-  Wire.beginTransmission(0x29);
-  Wire.write(0x00);
-  Wire.write(SOFT_RESET_GO2_SOFT_RESET_N);
-  Wire.write(0x01);  // Write 0x01 to bring out of reset
-  Wire.endTransmission();    
-  delay(10);  // Wait for sensor to stabilize
+  pinMode(XSHUT_PIN, OUTPUT);
+  digitalWrite(XSHUT_PIN, LOW);   // Pull XSHUT low to power down the sensor
+  delay(10);                     // Wait for the sensor to shut down
+  digitalWrite(XSHUT_PIN, HIGH); // Pull XSHUT high to power up the sensor
+  delay(10);
 
   distance_sensor.setTimeout(500);
   if (!distance_sensor.init())
