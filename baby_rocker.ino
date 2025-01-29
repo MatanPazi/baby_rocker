@@ -81,6 +81,7 @@ void setup() {
   }
     
   pinMode(DIGITAL_INPUT_PIN, INPUT_PULLUP);
+  pinMode(SOUND_SENSOR_PIN, INPUT);
 
   digitalWrite(DRIVER_ENABLE_PIN, HIGH);
   
