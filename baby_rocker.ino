@@ -9,7 +9,7 @@ VL53L0X distance_sensor;
 const int ROTARY_PINS[4] = {26, 25, 33, 32};
 const int SDA_PIN = 21;
 const int SCL_PIN = 22;
-const int SOUND_SENSOR_PIN = 18;
+const int SOUND_SENSOR_PIN = 36;
 const int STEPPER_STEP_PIN = 4;
 const int STEPPER_DIR_PIN = 23;
 const int DIGITAL_INPUT_PIN = 27;                       // ON/OFF Button
@@ -29,6 +29,8 @@ const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 50;  // 50[ms] -> 20Hz
 const long DISTANCE_TO_STEPS = 200;                     // [steps/cm] (200 steps = 1 mm) ***Needs tuning***
 const unsigned long MIDDLE_POSITION = 20000;            // [Steps]  ***Needs tuning***
 const unsigned long PULSE_IN_TIMEOUT = 2000;            // [uS]  ***Needs tuning***
+const int SOUND_SAMPLES = 10;                           // # of samples in sound reading moving average
+const int SOUND_THRESHOLD = 500;                        // 12 bits
 
 // Structs
 struct profileData {
@@ -52,6 +54,7 @@ volatile bool initializationFlag = true;
 volatile bool readDistanceFlag = true;
 volatile bool motionActive = false;
 unsigned long profileStartTime = 0;
+int sound_readings[SOUND_SAMPLES];
 int debug = 0;
 
 // Stepper motor setup
@@ -68,7 +71,7 @@ void setup() {
   delay(10);
 
   distance_sensor.setTimeout(500);
-  if (!distance_sensor.init())
+  if (!distance_sensor.init(true))
   {
     Serial.println("Failed to detect and initialize sensor!");
     while (1) {}
@@ -79,9 +82,13 @@ void setup() {
   for (int i = 0; i < 4; i++) {
     pinMode(ROTARY_PINS[i], INPUT_PULLUP);
   }
+
+  // Initialize all sound readings to 0
+  for (int i = 0; i < SOUND_SAMPLES; i++) {
+    sound_readings[i] = 0;
+  }    
     
   pinMode(DIGITAL_INPUT_PIN, INPUT_PULLUP);
-  pinMode(SOUND_SENSOR_PIN, INPUT);
 
   digitalWrite(DRIVER_ENABLE_PIN, HIGH);
   
@@ -281,7 +288,18 @@ void readSoundLevel() {
   static int debounceCntr = 0;
   static bool prevState = 0;
   static bool filt_state = 0;
-  bool currentState = !digitalRead(SOUND_SENSOR_PIN);        // Active low
+  bool currentState = false;
+  static int mov_avg_sum = 0;
+  static index = 0;
+    
+  int new_reading = analogRead(SOUND_SENSOR_PIN);    
+  mov_avg_sum = mov_avg_sum - readings[index] + new_reading;
+  sound_readings[index] = new_reading;
+  index = (index + 1) % SOUND_SAMPLES;
+  if ((mov_avg_sum / SOUND_SAMPLES) > SOUND_THRESHOLD)
+  {
+    currentState = true;
+  }  
 
   // Debouncing
   if (currentState != soundLevel)   {
