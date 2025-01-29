@@ -229,7 +229,7 @@ void readDistance() {
 
   Serial.print("Distance: ");
   Serial.print(distance);
-  Serial.println(" cm");
+  Serial.println(" mm");
   Serial.print("Step position: ");
   Serial.print(posInSteps);
   Serial.println(" steps");  
