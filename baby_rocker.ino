@@ -364,9 +364,7 @@ void updateStepperMotion() {
         Serial.println(elapsedTime - prevElapsedTime);
         prevElapsedTime = elapsedTime;
         readDistanceFlag = true;
-    }
-
-    stepper.setSpeed(profile.speed);
+    }    
     
     if (elapsedTime >= PROFILE_DURATION + SLOWDOWN_DURATION) {
         motionActive = false;
