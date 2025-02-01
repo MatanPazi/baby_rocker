@@ -26,7 +26,7 @@ const unsigned long SLOWDOWN_DURATION = 4096;           // 2^12 milliseconds (~4
 const unsigned long SLOWDOWN_SHIFT = 12;                // 1 << SLOWDOWN_SHIFT = SLOWDOWN_DURATION
 const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 10;  // 10[ms] -> 100Hz
 const long DISTANCE_TO_STEPS = 200;                     // [steps/cm] (200 steps = 1 mm) ***Needs tuning***
-const unsigned long MIDDLE_POSITION = 20000;            // [Steps]  ***Needs tuning***
+const unsigned long MIDDLE_POSITION = 2500;             // [Steps]  ***Needs tuning***
 const unsigned long PULSE_IN_TIMEOUT = 2000;            // [uS]  ***Needs tuning***
 const int SOUND_SAMPLES = 30;                           // # of samples in sound reading moving average
 const int SOUND_THRESHOLD = 500;                        // 12 bits
@@ -92,7 +92,7 @@ void setup() {
   digitalWrite(DRIVER_ENABLE_PIN, HIGH);
   
   stepper.setMaxSpeed(5000);                // Needs tuning
-  stepper.setAcceleration(500);             // Needs tuning
+  stepper.setAcceleration(250);             // Needs tuning
 
   // Create tasks for motor control and sensor reading
   xTaskCreatePinnedToCore(motorTask, "Motor Task", 10000, NULL, 2, NULL, 0);    // Higher priority
@@ -157,6 +157,7 @@ void setup() {
 
   if (debug == 5) {
     stepper.setCurrentPosition(MIDDLE_POSITION);
+    digitalWrite(DRIVER_ENABLE_PIN, LOW);         // Enable motor in debug mode.
   }
   
 
@@ -381,32 +382,32 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
     switch (currentRotaryState) {
       case 1:
         // Slow speed
-        profile.topPos = 30000;
-        profile.bottomPos = 20000;
-        profile.speed = 100;        
+        profile.topPos = 3000;
+        profile.bottomPos = 2000;
+        profile.speed = 500;        
         break;
       case 2:
         // Different speeds for up and down        
-        profile.topPos = 30000;                
-        profile.bottomPos = 20000;
-        profile.speed = (stepper.targetPosition() == profile.topPos) ? 700 : 300;        
+        profile.topPos = 3000;                
+        profile.bottomPos = 2000;
+        profile.speed = (stepper.targetPosition() == profile.topPos) ? 3000 : 2000;        
         break;
       case 4:
         // Variable speed based on position
-        profile.topPos = 30000;                
-        profile.bottomPos = 20000;
-        profile.speed = map(currentPosition, profile.bottomPos, profile.topPos, 300, 700);        
+        profile.topPos = 3000;                
+        profile.bottomPos = 2000;
+        profile.speed = map(currentPosition, profile.bottomPos, profile.topPos, 2000, 3000);        
         break;
       case 8:
         // Variable speed based on position        
-        profile.topPos = 30000;                
-        profile.bottomPos = 20000;
-        profile.speed = 800;
+        profile.topPos = 3000;                
+        profile.bottomPos = 2000;
+        profile.speed = 3500;
         break;        
       default:        
-        profile.topPos = 30000;                
-        profile.bottomPos = 20000;
-        profile.speed = 500;
+        profile.topPos = 3000;                
+        profile.bottomPos = 2000;
+        profile.speed = 2500;
     }
     
     // Apply slowdown factor
