@@ -25,9 +25,8 @@ const unsigned long PROFILE_DURATION = 600000;          // 10 minutes in millise
 const unsigned long SLOWDOWN_DURATION = 4096;           // 2^12 milliseconds (~4 seconds)
 const unsigned long SLOWDOWN_SHIFT = 12;                // 1 << SLOWDOWN_SHIFT = SLOWDOWN_DURATION
 const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 10;  // 10[ms] -> 100Hz
-const long DISTANCE_TO_STEPS = 200;                     // [steps/cm] (200 steps = 1 mm) ***Needs tuning***
-const unsigned long MIDDLE_POSITION = 2500;             // [Steps]  ***Needs tuning***
-const unsigned long PULSE_IN_TIMEOUT = 2000;            // [uS]  ***Needs tuning***
+const long DISTANCE_TO_STEPS = 20;                      // [steps/mm] (20 steps = 1 mm) ***Needs tuning***
+const unsigned long MIDDLE_POSITION = 2900;             // [Steps]  ***Needs tuning***
 const int SOUND_SAMPLES = 30;                           // # of samples in sound reading moving average
 const int SOUND_THRESHOLD = 500;                        // 12 bits
 
@@ -91,8 +90,8 @@ void setup() {
 
   digitalWrite(DRIVER_ENABLE_PIN, HIGH);
   
-  stepper.setMaxSpeed(5000);                // Needs tuning
-  stepper.setAcceleration(250);             // Needs tuning
+  stepper.setMaxSpeed(500);                // Needs tuning
+  stepper.setAcceleration(50);             // Needs tuning
 
   // Create tasks for motor control and sensor reading
   xTaskCreatePinnedToCore(motorTask, "Motor Task", 10000, NULL, 2, NULL, 0);    // Higher priority
@@ -105,7 +104,7 @@ void setup() {
       Upload sketch to ESP32.
       Read SerialPrint logs.
       Point sensor at stuff and see results.
-      Should give results in cm and steps assuming a 2000 step per 1 cm ratio.
+      Should give results in cm and steps assuming a 200 step per 1 cm ratio.
 
   debug = 2 - Checking checkRotarySwitch
       Set debug to 2.
@@ -382,31 +381,31 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
     switch (currentRotaryState) {
       case 1:
         // Slow speed
-        profile.topPos = 3000;
-        profile.bottomPos = 2000;
+        profile.topPos = 3300;
+        profile.bottomPos = 2600;
         profile.speed = 500;        
         break;
       case 2:
         // Different speeds for up and down        
-        profile.topPos = 3000;                
-        profile.bottomPos = 2000;
-        profile.speed = (stepper.targetPosition() == profile.topPos) ? 3000 : 2000;        
+        profile.topPos = 3300;                
+        profile.bottomPos = 2600;
+        profile.speed = (stepper.targetPosition() == profile.topPos) ? 3300 : 2600;        
         break;
       case 4:
         // Variable speed based on position
-        profile.topPos = 3000;                
-        profile.bottomPos = 2000;
-        profile.speed = map(currentPosition, profile.bottomPos, profile.topPos, 2000, 3000);        
+        profile.topPos = 3300;                
+        profile.bottomPos = 2600;
+        profile.speed = map(currentPosition, profile.bottomPos, profile.topPos, 2600, 3300);        
         break;
       case 8:
         // Variable speed based on position        
-        profile.topPos = 3000;                
-        profile.bottomPos = 2000;
+        profile.topPos = 3300;                
+        profile.bottomPos = 2600;
         profile.speed = 3500;
         break;        
       default:        
-        profile.topPos = 3000;                
-        profile.bottomPos = 2000;
+        profile.topPos = 3300;                
+        profile.bottomPos = 2600;
         profile.speed = 2500;
     }
     
@@ -429,6 +428,5 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
 /* TODO:
 Add harsher constraints to read ON/OFF button on initialization (Harsher then if (distance != 0.0))
 Allow for readings only in certain range.
-Filter readings (Average over 5 samples?)
-Divide result by 10.
+Filter distance readings (Average over 5 samples?)
 */
