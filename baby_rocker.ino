@@ -5,6 +5,12 @@
 
 VL53L0X distance_sensor;
 
+enum distanceStates {
+  READ_DISTANCE_NOT_NEEDED,
+  READ_DISTANCE_NEEDED,
+  READ_DISTANCE_FINISHED,
+};
+
 // Pin definitions
 const int ROTARY_PINS[4] = {26, 25, 33, 32};
 const int SDA_PIN = 21;
@@ -38,21 +44,21 @@ struct profileData {
 };
 
 // Variables
+bool soundLevel = 0.0;
+volatile bool digitalInputState = false;
+volatile bool motionActive = false;
+int readState = 0;
+int currentRotaryState = 0;
+int sound_readings[SOUND_SAMPLES];
+long distance = 0;
+long posInSteps = 0;
+unsigned long profileStartTime = 0;
 unsigned long lastRotaryCheck = 0;
 unsigned long lastDistanceCheck = 0;
 unsigned long lastSoundCheck = 0;
-int readState = 0;
-int currentRotaryState = 0;
-long distance = 0;
-long posInSteps = 0;
-bool soundLevel = 0.0;
-volatile bool digitalInputState = false;
 unsigned long lastDigitalInputCheck = 0;
-volatile bool initializationFlag = true;
-volatile bool readDistanceFlag = true;
-volatile bool motionActive = false;
-unsigned long profileStartTime = 0;
-int sound_readings[SOUND_SAMPLES];
+enum distanceStates readDistanceState = READ_DISTANCE_NEEDED;
+
 int debug = 0;
 
 // Stepper motor setup
@@ -169,8 +175,8 @@ void loop() {
 void motorTask(void *pvParameters) {
     while (true) {
       if (debug == 5 || debug == 0) {    
-        // Move only if commanded to and if distance finished reading
-        if ((motionActive && !readDistanceFlag) || debug == 5) {
+        // Move only if commanded
+        if (motionActive || (debug == 5)) {
           updateStepperMotion();
           stepper.run();
         }
@@ -183,7 +189,7 @@ void sensorTask(void *pvParameters) {
   while (true) {
     unsigned long currentMillis = millis();
     if (debug == 1 || debug == 0) {
-      if (initializationFlag || readDistanceFlag || debug == 1) {
+      if ((readDistanceState == READ_DISTANCE_NEEDED) || debug == 1) {
         readDistance();
       }
     }
@@ -223,10 +229,8 @@ void readDistance() {
   posInSteps = (long)(distance * DISTANCE_TO_STEPS);
   
   stepper.setCurrentPosition(posInSteps);
-  readDistanceFlag = false;
-  if (initializationFlag) {
-    initializationFlag = false;
-  }
+
+  readDistanceState = READ_DISTANCE_FINISHED;
 
   Serial.print("Distance: ");
   Serial.print(distance);
@@ -359,11 +363,23 @@ void updateStepperMotion() {
     profileData profile = calculateProfile(currentPosition, elapsedTime);
 
     if (stepper.distanceToGo() == 0) {
-        stepper.moveTo(stepper.currentPosition() == profile.topPos ? profile.bottomPos : profile.topPos);        
-        Serial.print("Elapsed time [ms]: ");
-        Serial.println(elapsedTime - prevElapsedTime);
-        prevElapsedTime = elapsedTime;
-        readDistanceFlag = true;
+        if (readDistanceState == READ_DISTANCE_NOT_NEEDED)
+        {
+          Serial.print("Elapsed time [ms]: ");
+          Serial.println(elapsedTime - prevElapsedTime);
+          prevElapsedTime = elapsedTime;
+          readDistanceState = READ_DISTANCE_NEEDED;          
+        }
+        else if (readDistanceState == READ_DISTANCE_FINISHED)
+        {
+          stepper.moveTo(stepper.currentPosition() == profile.topPos ? profile.bottomPos : profile.topPos);        
+          readDistanceState = READ_DISTANCE_NOT_NEEDED;
+        }
+        else
+        {
+          /* Do nothing.
+             Waiting for readDistance() to run and update readDistanceState to READ_DISTANCE_FINISHED */
+        }
     }    
     
     if (elapsedTime >= PROFILE_DURATION + SLOWDOWN_DURATION) {
