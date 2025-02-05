@@ -35,6 +35,8 @@ const long DISTANCE_TO_STEPS = 20;                      // [steps/mm] (20 steps 
 const unsigned long MIDDLE_POSITION = 2900;             // [Steps]  ***Needs tuning***
 const int SOUND_SAMPLES = 30;                           // # of samples in sound reading moving average
 const int SOUND_THRESHOLD = 500;                        // 12 bits
+const int DISTANCE_MARGIN = 100;                        // Max allowed distance from target position to be considered as "Reached target" [Steps]
+const int STUCK_COUNTER_MAX = 2;                        // Max # of iterations in a row not reaching target, means motor is probably stuck.
 
 // Structs
 struct profileData {
@@ -67,6 +69,8 @@ AccelStepper stepper(AccelStepper::DRIVER, STEPPER_STEP_PIN, STEPPER_DIR_PIN);
 void setup() {
   Serial.begin(115200);
   Wire.begin(SDA_PIN, SCL_PIN);
+
+  stepper.setPinsInverted(true, false, false);  /* Inverting direction pin logic */
 
   pinMode(XSHUT_PIN, OUTPUT);
   digitalWrite(XSHUT_PIN, LOW);   // Pull XSHUT low to power down the sensor
@@ -188,7 +192,7 @@ void motorTask(void *pvParameters) {
 void sensorTask(void *pvParameters) {
   while (true) {
     unsigned long currentMillis = millis();
-    if (debug == 1 || debug == 0) {
+    if (debug == 1 || debug == 0 || debug == 5) {
       if ((readDistanceState == READ_DISTANCE_NEEDED) || debug == 1) {
         readDistance();
       }
@@ -228,7 +232,10 @@ void readDistance() {
   }
   posInSteps = (long)(distance * DISTANCE_TO_STEPS);
   
-  stepper.setCurrentPosition(posInSteps);
+  if (debug != 5)
+  {
+    stepper.setCurrentPosition(posInSteps);
+  }
 
   readDistanceState = READ_DISTANCE_FINISHED;
 
@@ -359,20 +366,41 @@ void updateStepperMotion() {
     long currentPosition = stepper.currentPosition();
     unsigned long elapsedTime = millis() - profileStartTime;
     static unsigned long prevElapsedTime = 0;
+    static int stuckCounter = 0;
     
     profileData profile = calculateProfile(currentPosition, elapsedTime);
 
-    if (stepper.distanceToGo() == 0) {
+    if (stepper.distanceToGo() == 0) 
+    {
         if (readDistanceState == READ_DISTANCE_NOT_NEEDED)
         {
           Serial.print("Elapsed time [ms]: ");
           Serial.println(elapsedTime - prevElapsedTime);
+          if (debug == 5)
+          {
+            Serial.print("Estimated position: ");
+            Serial.println(currentPosition);            
+          }
           prevElapsedTime = elapsedTime;
           readDistanceState = READ_DISTANCE_NEEDED;          
         }
         else if (readDistanceState == READ_DISTANCE_FINISHED)
         {
-          stepper.moveTo(stepper.currentPosition() == profile.topPos ? profile.bottomPos : profile.topPos);        
+          if (currentPosition > (profile.topPos - DISTANCE_MARGIN)) /* Close enough to top position */
+          {
+            stepper.moveTo(profile.bottomPos);
+            stuckCounter = 0;
+          }
+          else if (currentPosition < (profile.bottomPos + DISTANCE_MARGIN)) /* Close enough to bottom position */
+          {
+            stepper.moveTo(profile.topPos);
+            stuckCounter = 0;
+          }     
+          else
+          {
+            stepper.moveTo(profile.topPos); /* Didn't reach destination, try reaching the top position */
+            stuckCounter++;
+          }
           readDistanceState = READ_DISTANCE_NOT_NEEDED;
         }
         else
@@ -382,11 +410,20 @@ void updateStepperMotion() {
         }
     }    
     
-    if (elapsedTime >= PROFILE_DURATION + SLOWDOWN_DURATION) {
+    if (elapsedTime >= PROFILE_DURATION + SLOWDOWN_DURATION)
+    {
         motionActive = false;
         prevElapsedTime = 0;
         digitalWrite(DRIVER_ENABLE_PIN, HIGH);
         Serial.println("Motion completed and stopped");
+    }
+    else if (stuckCounter >= STUCK_COUNTER_MAX)
+    {
+        motionActive = false;
+        prevElapsedTime = 0;
+        digitalWrite(DRIVER_ENABLE_PIN, HIGH);
+        Serial.println("Motion stopped, system seems stuck");
+        stuckCounter = 0;
     }
 }
 
