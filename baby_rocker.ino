@@ -389,7 +389,7 @@ void updateStepperMotion() {
         }
         else if (readDistanceState == READ_DISTANCE_FINISHED)
         {
-          if (currentPosition > (profile.topPos - DISTANCE_MARGIN)) /* Close enough to top position */
+          if (currentPosition > (profile.topPos - DISTANCE_MARGIN)) /* Close enough to top position */ // TODO limit from top as well
           {
             stepper.moveTo(profile.bottomPos);
             stuckCounter = 0;
