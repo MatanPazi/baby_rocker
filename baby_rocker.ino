@@ -41,9 +41,11 @@ const int STUCK_COUNTER_MAX = 2;                        // Max # of iterations i
 
 // Structs
 struct profileData {
-    long topPos;
-    long bottomPos;    
-    int speed;
+    long topPos;        // Steps
+    long bottomPos;     // Steps
+    long topPosDist;    // mm
+    long bottomPosDist; // mm         
+    int speed;          // Steps/sec
 };
 
 // Variables
@@ -435,31 +437,41 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
     switch (currentRotaryState) {
       case 1:
         // Slow speed
-        profile.topPos = 3300;
-        profile.bottomPos = 2600;
+        profile.topPos = 6800;
+        profile.bottomPos = 4000;
+        profile.topPosDist = 90;
+        profile.bottomPosDist = 53;
         profile.speed = 500;        
         break;
       case 2:
         // Different speeds for up and down        
-        profile.topPos = 3300;                
-        profile.bottomPos = 2600;
+        profile.topPos = 6800;
+        profile.bottomPos = 4000;
+        profile.topPosDist = 90;
+        profile.bottomPosDist = 53;
         profile.speed = (stepper.targetPosition() == profile.topPos) ? 3300 : 2600;        
         break;
       case 4:
         // Variable speed based on position
-        profile.topPos = 3300;                
-        profile.bottomPos = 2600;
+        profile.topPos = 6800;
+        profile.bottomPos = 4000;
+        profile.topPosDist = 90;
+        profile.bottomPosDist = 53;
         profile.speed = map(currentPosition, profile.bottomPos, profile.topPos, 2600, 3300);        
         break;
       case 8:
         // Variable speed based on position        
-        profile.topPos = 3300;                
-        profile.bottomPos = 2600;
+        profile.topPos = 6800;
+        profile.bottomPos = 4000;
+        profile.topPosDist = 90;
+        profile.bottomPosDist = 53;
         profile.speed = 3500;
         break;        
       default:        
-        profile.topPos = 3300;                
-        profile.bottomPos = 2600;
+        profile.topPos = 6800;
+        profile.bottomPos = 4000;
+        profile.topPosDist = 90;
+        profile.bottomPosDist = 53;
         profile.speed = 2500;
     }
     
