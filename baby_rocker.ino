@@ -32,6 +32,7 @@ const unsigned long SLOWDOWN_DURATION = 4096;           // 2^12 milliseconds (~4
 const unsigned long SLOWDOWN_SHIFT = 12;                // 1 << SLOWDOWN_SHIFT = SLOWDOWN_DURATION
 const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 10;  // 10[ms] -> 100Hz
 const long DISTANCE_TO_STEPS = 75;                     // [steps/mm] (150 steps = 1 mm) ***Needs fine-tuning***
+const long DISTANCE_SENSOR_OFFSET = 63;                 // Sensor has an offset of 63[mm]
 const unsigned long MIDDLE_POSITION = 2900;             // [Steps]  ***Needs tuning***
 const int SOUND_SAMPLES = 30;                           // # of samples in sound reading moving average
 const int SOUND_THRESHOLD = 500;                        // 12 bits
@@ -226,7 +227,7 @@ void sensorTask(void *pvParameters) {
 
 /* Reads distance measurements and prints the distance in cm and steps */
 void readDistance() {  
-  distance = (long)(distance_sensor.readRangeSingleMillimeters());
+  distance = (long)(distance_sensor.readRangeSingleMillimeters()) - DISTANCE_SENSOR_OFFSET;
   if (distance_sensor.timeoutOccurred()) {
     Serial.print(" TIMEOUT");
   }
