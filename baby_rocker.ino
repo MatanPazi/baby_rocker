@@ -33,10 +33,10 @@ const unsigned long SLOWDOWN_SHIFT = 12;                // 1 << SLOWDOWN_SHIFT =
 const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 10;  // [ms], 10[ms] -> 100Hz
 const long DISTANCE_TO_STEPS = 75;                      // [steps/mm] ***Needs fine-tuning***
 const long DISTANCE_SENSOR_OFFSET = 63;                 // [mm]
-const unsigned long MIDDLE_POSITION = 2900;             // [Steps]  ***Needs tuning***
+const unsigned long MIDDLE_POSITION = 5400;             // [Steps]  ***Needs tuning***
 const int SOUND_SAMPLES = 30;                           // # of samples in sound reading moving average
 const int SOUND_THRESHOLD = 500;                        // 12 bits
-const int DISTANCE_MARGIN = 100;                        // [Steps], Max allowed distance from target position to be considered as "Reached target".
+const int DISTANCE_MARGIN = 500;                        // [Steps], Max allowed distance from target position to be considered as "Reached target".
 const int STUCK_COUNTER_MAX = 3;                        // Max # of iterations in a row not reaching target, means motor is probably stuck.
 
 // Structs
@@ -379,11 +379,8 @@ void updateStepperMotion() {
         {
           Serial.print("Elapsed time [ms]: ");
           Serial.println(elapsedTime - prevElapsedTime);
-          if (debug == 5)
-          {
-            Serial.print("Estimated position: ");
-            Serial.println(currentPosition);            
-          }
+          Serial.print("Estimated position: ");
+          Serial.println(currentPosition);            
           prevElapsedTime = elapsedTime;
           readDistanceState = READ_DISTANCE_NEEDED;          
         }
@@ -439,41 +436,42 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
     switch (currentRotaryState) {
       case 1:
         // Slow speed
-        profile.topPos = 6800;
-        profile.bottomPos = 4000;
-        profile.topPosDist = 90;
-        profile.bottomPosDist = 53;
-        profile.speed = 500;        
+        profile.topPosDist = 85;
+        profile.bottomPosDist = 60;
+        profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
+        profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
+
+        profile.speed = 1000;        
         break;
       case 2:
         // Different speeds for up and down        
-        profile.topPos = 6800;
-        profile.bottomPos = 4000;
-        profile.topPosDist = 90;
-        profile.bottomPosDist = 53;
+        profile.topPosDist = 85;
+        profile.bottomPosDist = 60;
+        profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
+        profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
         profile.speed = (stepper.targetPosition() == profile.topPos) ? 1000 : 200;        
         break;
       case 4:
         // Variable speed based on position
-        profile.topPos = 6800;
-        profile.bottomPos = 4000;
-        profile.topPosDist = 90;
-        profile.bottomPosDist = 53;
+        profile.topPosDist = 85;
+        profile.bottomPosDist = 60;
+        profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
+        profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
         profile.speed = map(currentPosition, profile.bottomPos, profile.topPos, 200, 1000);        
         break;
       case 8:
         // High speed      
-        profile.topPos = 6800;
-        profile.bottomPos = 4000;
-        profile.topPosDist = 90;
-        profile.bottomPosDist = 53;
+        profile.topPosDist = 85;
+        profile.bottomPosDist = 60;
+        profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
+        profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
         profile.speed = 2000;
         break;        
       default:        
-        profile.topPos = 6800;
-        profile.bottomPos = 4000;
-        profile.topPosDist = 90;
-        profile.bottomPosDist = 53;
+        profile.topPosDist = 85;
+        profile.bottomPosDist = 60;
+        profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
+        profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
         profile.speed = 500;
     }
     
