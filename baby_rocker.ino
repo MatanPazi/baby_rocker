@@ -25,19 +25,19 @@ const int XSHUT_PIN = 15;                               // Reset pin for distanc
 
 // Constants
 const unsigned long DEBOUNCE_CNTR = 3;
-const unsigned long ROTARY_CHECK_INTERVAL = 100;        // 100[ms] -> 10Hz
-const unsigned long SOUND_CHECK_INTERVAL = 20;          // 20[ms] -> 50Hz
-const unsigned long PROFILE_DURATION = 600000;          // 10 minutes in milliseconds
-const unsigned long SLOWDOWN_DURATION = 4096;           // 2^12 milliseconds (~4 seconds)
+const unsigned long ROTARY_CHECK_INTERVAL = 100;        // [ms], 100[ms] -> 10Hz
+const unsigned long SOUND_CHECK_INTERVAL = 20;          // [ms], 20[ms] -> 50Hz
+const unsigned long PROFILE_DURATION = 600000;          // [ms], 10 minutes in milliseconds
+const unsigned long SLOWDOWN_DURATION = 4096;           // [ms], 2^12 milliseconds (~4 seconds)
 const unsigned long SLOWDOWN_SHIFT = 12;                // 1 << SLOWDOWN_SHIFT = SLOWDOWN_DURATION
-const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 10;  // 10[ms] -> 100Hz
-const long DISTANCE_TO_STEPS = 75;                     // [steps/mm] (150 steps = 1 mm) ***Needs fine-tuning***
-const long DISTANCE_SENSOR_OFFSET = 63;                 // Sensor has an offset of 63[mm]
+const unsigned long DIGITAL_INPUT_CHECK_INTERVAL = 10;  // [ms], 10[ms] -> 100Hz
+const long DISTANCE_TO_STEPS = 75;                      // [steps/mm] ***Needs fine-tuning***
+const long DISTANCE_SENSOR_OFFSET = 63;                 // [mm]
 const unsigned long MIDDLE_POSITION = 2900;             // [Steps]  ***Needs tuning***
 const int SOUND_SAMPLES = 30;                           // # of samples in sound reading moving average
 const int SOUND_THRESHOLD = 500;                        // 12 bits
-const int DISTANCE_MARGIN = 100;                        // Max allowed distance from target position to be considered as "Reached target" [Steps]
-const int STUCK_COUNTER_MAX = 2;                        // Max # of iterations in a row not reaching target, means motor is probably stuck.
+const int DISTANCE_MARGIN = 100;                        // [Steps], Max allowed distance from target position to be considered as "Reached target".
+const int STUCK_COUNTER_MAX = 3;                        // Max # of iterations in a row not reaching target, means motor is probably stuck.
 
 // Structs
 struct profileData {
@@ -389,24 +389,26 @@ void updateStepperMotion() {
         }
         else if (readDistanceState == READ_DISTANCE_FINISHED)
         {
-          if (currentPosition > (profile.topPos - DISTANCE_MARGIN)) /* Close enough to top position */ // TODO limit from top as well
+          if ((currentPosition > (profile.topPos - DISTANCE_MARGIN)) &&
+              (currentPosition < (profile.topPos + DISTANCE_MARGIN)))             /* Close enough to top position */
           {
             stepper.moveTo(profile.bottomPos);
             stuckCounter = 0;
           }
-          else if (currentPosition < (profile.bottomPos + DISTANCE_MARGIN)) /* Close enough to bottom position */
+          else if ((currentPosition < (profile.bottomPos + DISTANCE_MARGIN)) &&
+                   (currentPosition > (profile.bottomPos - DISTANCE_MARGIN)))     /* Close enough to bottom position */
           {
             stepper.moveTo(profile.topPos);
             stuckCounter = 0;
           }     
-          else
+          else  /* Didn't reach destination, try reaching the top position */
           {
-            stepper.moveTo(profile.topPos); /* Didn't reach destination, try reaching the top position */
+            stepper.moveTo(profile.topPos); 
             stuckCounter++;
           }
           readDistanceState = READ_DISTANCE_NOT_NEEDED;
         }
-        else
+        else    /* readDistanceState == READ_DISTANCE_NEEDED */
         {
           /* Do nothing.
              Waiting for readDistance() to run and update readDistanceState to READ_DISTANCE_FINISHED */
@@ -449,7 +451,7 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
         profile.bottomPos = 4000;
         profile.topPosDist = 90;
         profile.bottomPosDist = 53;
-        profile.speed = (stepper.targetPosition() == profile.topPos) ? 3300 : 2600;        
+        profile.speed = (stepper.targetPosition() == profile.topPos) ? 1000 : 200;        
         break;
       case 4:
         // Variable speed based on position
@@ -457,22 +459,22 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
         profile.bottomPos = 4000;
         profile.topPosDist = 90;
         profile.bottomPosDist = 53;
-        profile.speed = map(currentPosition, profile.bottomPos, profile.topPos, 2600, 3300);        
+        profile.speed = map(currentPosition, profile.bottomPos, profile.topPos, 200, 1000);        
         break;
       case 8:
-        // Variable speed based on position        
+        // High speed      
         profile.topPos = 6800;
         profile.bottomPos = 4000;
         profile.topPosDist = 90;
         profile.bottomPosDist = 53;
-        profile.speed = 3500;
+        profile.speed = 2000;
         break;        
       default:        
         profile.topPos = 6800;
         profile.bottomPos = 4000;
         profile.topPosDist = 90;
         profile.bottomPosDist = 53;
-        profile.speed = 2500;
+        profile.speed = 500;
     }
     
     // Apply slowdown factor
