@@ -103,8 +103,8 @@ void setup() {
 
   digitalWrite(DRIVER_ENABLE_PIN, HIGH);
   
-  stepper.setMaxSpeed(500);                // Needs tuning
-  stepper.setAcceleration(50);             // Needs tuning
+  stepper.setMaxSpeed(10000);                 // Needs tuning
+  stepper.setAcceleration(10000);             // Needs tuning
 
   // Create tasks for motor control and sensor reading
   xTaskCreatePinnedToCore(motorTask, "Motor Task", 10000, NULL, 2, NULL, 0);    // Higher priority
@@ -188,7 +188,7 @@ void motorTask(void *pvParameters) {
           stepper.run();
         }
       }
-      vTaskDelay(10);
+      vTaskDelay(0);
     }
 }
 
@@ -223,7 +223,7 @@ void sensorTask(void *pvParameters) {
       }
     }
 
-    vTaskDelay(10); // Yield to other tasks
+    vTaskDelay(0); // Yield to other tasks
   }
 }
 
@@ -436,40 +436,40 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
     switch (currentRotaryState) {
       case 1:
         // Slow speed
-        profile.topPosDist = 85;
-        profile.bottomPosDist = 60;
+        profile.topPosDist = 80;
+        profile.bottomPosDist = 65;
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
 
-        profile.speed = 1000;        
+        profile.speed = 5000;        
         break;
       case 2:
         // Different speeds for up and down        
-        profile.topPosDist = 85;
-        profile.bottomPosDist = 60;
+        profile.topPosDist = 80;
+        profile.bottomPosDist = 65;
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
         profile.speed = (stepper.targetPosition() == profile.topPos) ? 1000 : 200;        
         break;
       case 4:
         // Variable speed based on position
-        profile.topPosDist = 85;
-        profile.bottomPosDist = 60;
+        profile.topPosDist = 80;
+        profile.bottomPosDist = 65;
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
         profile.speed = map(currentPosition, profile.bottomPos, profile.topPos, 200, 1000);        
         break;
       case 8:
         // High speed      
-        profile.topPosDist = 85;
-        profile.bottomPosDist = 60;
+        profile.topPosDist = 80;
+        profile.bottomPosDist = 65;
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
         profile.speed = 2000;
         break;        
       default:        
-        profile.topPosDist = 85;
-        profile.bottomPosDist = 60;
+        profile.topPosDist = 80;
+        profile.bottomPosDist = 65;
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
         profile.speed = 500;
@@ -492,7 +492,5 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
 
 
 /* TODO:
-Add harsher constraints to read ON/OFF button on initialization (Harsher then if (distance != 0.0))
-Allow for readings only in certain range.
-Filter distance readings (Average over 5 samples?)
+
 */
