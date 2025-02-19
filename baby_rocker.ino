@@ -394,14 +394,16 @@ void updateStepperMotion() {
         }
         else if (readDistanceState == READ_DISTANCE_FINISHED)
         {
-          if ((currentPosition > (profile.topPos - DISTANCE_MARGIN)) &&
-              (currentPosition < (profile.topPos + DISTANCE_MARGIN)))             /* Close enough to top position */
+          if ((stepper.targetPosition() == profile.topPos) &&   /* Close enough to top position */
+              (currentPosition < (profile.topPos + DISTANCE_MARGIN)) &&
+              (currentPosition > (profile.topPos - DISTANCE_MARGIN)))   
           {
             stepper.moveTo(profile.bottomPos);
             stuckCounter = 0;
           }
-          else if ((currentPosition < (profile.bottomPos + DISTANCE_MARGIN)) &&
-                   (currentPosition > (profile.bottomPos - DISTANCE_MARGIN)))     /* Close enough to bottom position */
+          else if ((stepper.targetPosition() == profile.bottomPos) &&     /* Close enough to bottom position */
+                   (currentPosition > (profile.bottomPos - DISTANCE_MARGIN)) &&
+                   (currentPosition < (profile.bottomPos + DISTANCE_MARGIN)))
           {
             stepper.moveTo(profile.topPos);
             stuckCounter = 0;
