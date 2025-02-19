@@ -2,6 +2,7 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <VL53L0X.h>        // by Pololu
+#include "esp_task_wdt.h"
 
 VL53L0X distance_sensor;
 
@@ -180,6 +181,8 @@ void loop() {
 }
 
 void motorTask(void *pvParameters) {
+    esp_task_wdt_delete(NULL);
+    disableCore0WDT();  
     while (true) {
       if (debug == 5 || debug == 0) {    
         // Move only if commanded
@@ -193,6 +196,8 @@ void motorTask(void *pvParameters) {
 }
 
 void sensorTask(void *pvParameters) {
+  esp_task_wdt_delete(NULL);
+  disableCore1WDT();  
   while (true) {
     unsigned long currentMillis = millis();
     if (debug == 1 || debug == 0 || debug == 5) {
