@@ -373,6 +373,7 @@ void checkDigitalInput() {
 /* Setting speed and target position based on time passed since last rotary switch change and current position */
 void updateStepperMotion() {
     long currentPosition = stepper.currentPosition();
+    static long targetPosition = 0;
     unsigned long elapsedTime = millis() - profileStartTime;
     static unsigned long prevElapsedTime = 0;
     static int stuckCounter = 0;
@@ -394,23 +395,26 @@ void updateStepperMotion() {
         }
         else if (readDistanceState == READ_DISTANCE_FINISHED)
         {
-          if ((stepper.targetPosition() == profile.topPos) &&   /* Close enough to top position */
+          if ((targetPosition == profile.topPos) &&   /* Close enough to top position */
               (currentPosition < (profile.topPos + DISTANCE_MARGIN)) &&
               (currentPosition > (profile.topPos - DISTANCE_MARGIN)))   
           {
             stepper.moveTo(profile.bottomPos);
+            targetPosition = stepper.targetPosition();
             stuckCounter = 0;
           }
-          else if ((stepper.targetPosition() == profile.bottomPos) &&     /* Close enough to bottom position */
+          else if ((targetPosition == profile.bottomPos) &&     /* Close enough to bottom position */
                    (currentPosition > (profile.bottomPos - DISTANCE_MARGIN)) &&
                    (currentPosition < (profile.bottomPos + DISTANCE_MARGIN)))
           {
             stepper.moveTo(profile.topPos);
+            targetPosition = stepper.targetPosition();
             stuckCounter = 0;
           }     
           else  /* Didn't reach destination, try reaching the top position */
           {
             stepper.moveTo(profile.topPos); 
+            targetPosition = stepper.targetPosition();
             stuckCounter++;
           }
           readDistanceState = READ_DISTANCE_NOT_NEEDED;
