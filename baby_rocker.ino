@@ -372,6 +372,7 @@ void updateStepperMotion() {
     static int stuckCounter = 0;
     
     profileData profile = calculateProfile(currentPosition, elapsedTime);
+    stepper.setMaxSpeed(profile.speed);
 
     if (stepper.distanceToGo() == 0) 
     {
