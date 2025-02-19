@@ -173,8 +173,8 @@ void setup() {
     stepper.setCurrentPosition(MIDDLE_POSITION);
     digitalWrite(DRIVER_ENABLE_PIN, LOW);         // Enable motor in debug mode.
   }
-  
 
+  profileData profile = calculateProfile(0, 0);   // Initializing profile
 }
 
 void loop() {
@@ -378,10 +378,6 @@ void updateStepperMotion() {
     static unsigned long prevElapsedTime = 0;
     static int stuckCounter = 0;
     
-    profileData profile = calculateProfile(currentPosition, elapsedTime);
-    stepper.setMaxSpeed(profile.speed);
-    stepper.setAcceleration(profile.acceleration);
-
     if (stepper.distanceToGo() == 0) 
     {
         if (readDistanceState == READ_DISTANCE_NOT_NEEDED)
@@ -424,6 +420,9 @@ void updateStepperMotion() {
           /* Do nothing.
              Waiting for readDistance() to run and update readDistanceState to READ_DISTANCE_FINISHED */
         }
+        profileData profile = calculateProfile(currentPosition, elapsedTime);
+        stepper.setMaxSpeed(profile.speed);
+        stepper.setAcceleration(profile.acceleration);        
     }    
     
     if (elapsedTime >= PROFILE_DURATION + SLOWDOWN_DURATION)
