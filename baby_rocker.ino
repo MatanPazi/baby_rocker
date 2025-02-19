@@ -467,13 +467,13 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
         profile.acceleration = 10000;
         break;
       case 4:
-        // Variable speed based on position
-        profile.topPosDist = 80;
-        profile.bottomPosDist = 65;
+        // Shaker
+        profile.topPosDist = 79;
+        profile.bottomPosDist = 75;
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
-        profile.speed = map(currentPosition, profile.bottomPos, profile.topPos, 200, 1000);        
-        profile.acceleration = 10000;
+        profile.speed = (stepper.targetPosition() == profile.topPos) ? 14000 : 14000;        
+        profile.acceleration = 30000;
         break;
       case 8:
         // High speed      
@@ -481,7 +481,7 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
         profile.bottomPosDist = 65;
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
-        profile.speed = 2000;
+        profile.speed = map(currentPosition, profile.bottomPos, profile.topPos, 200, 1000);        
         profile.acceleration = 10000;
         break;        
       default:        
