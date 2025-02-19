@@ -47,6 +47,7 @@ struct profileData {
     long topPosDist;    // mm
     long bottomPosDist; // mm         
     int speed;          // Steps/sec
+    int acceleration;   // Steps/sec/sec
 };
 
 // Variables
@@ -378,6 +379,7 @@ void updateStepperMotion() {
     
     profileData profile = calculateProfile(currentPosition, elapsedTime);
     stepper.setMaxSpeed(profile.speed);
+    stepper.setAcceleration(profile.acceleration);
 
     if (stepper.distanceToGo() == 0) 
     {
@@ -441,13 +443,13 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
     // Determine base speed based on current profile and direction
     switch (currentRotaryState) {
       case 1:
-        // Slow speed
+        // 1 Hz heartbeat - medium amplitude
         profile.topPosDist = 80;
-        profile.bottomPosDist = 65;
+        profile.bottomPosDist = 70;
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
-
-        profile.speed = 5000;        
+        profile.speed = 8000;
+        profile.acceleration = 20000;
         break;
       case 2:
         // Different speeds for up and down        
@@ -455,7 +457,8 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
         profile.bottomPosDist = 65;
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
-        profile.speed = (stepper.targetPosition() == profile.topPos) ? 1000 : 200;        
+        profile.speed = (stepper.targetPosition() == profile.topPos) ? 1000 : 200;
+        profile.acceleration = 10000;
         break;
       case 4:
         // Variable speed based on position
@@ -464,6 +467,7 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
         profile.speed = map(currentPosition, profile.bottomPos, profile.topPos, 200, 1000);        
+        profile.acceleration = 10000;
         break;
       case 8:
         // High speed      
@@ -472,6 +476,7 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
         profile.speed = 2000;
+        profile.acceleration = 10000;
         break;        
       default:        
         profile.topPosDist = 80;
@@ -479,6 +484,7 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
         profile.speed = 500;
+        profile.acceleration = 10000;
     }
     
     // Apply slowdown factor
