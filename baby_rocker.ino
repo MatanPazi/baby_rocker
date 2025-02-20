@@ -110,6 +110,8 @@ void setup() {
   stepper.setMaxSpeed(10000);                 // Needs tuning
   stepper.setAcceleration(10000);             // Needs tuning
 
+  calculateProfile(0, 0);                     // Sets profile with initial values
+
   // Create tasks for motor control and sensor reading
   xTaskCreatePinnedToCore(motorTask, "Motor Task", 10000, NULL, 2, NULL, 0);    // Higher priority
   xTaskCreatePinnedToCore(sensorTask, "Sensor Task", 10000, NULL, 1, NULL, 1);
