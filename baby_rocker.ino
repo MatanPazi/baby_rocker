@@ -459,8 +459,9 @@ void calculateProfile(long currentPosition, unsigned long elapsedTime) {
         profile.bottomPosDist = 60;
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
-        profile.speed = (stepper.targetPosition() == profile.topPos) ? 2000 : 4000;
-        profile.acceleration = 1000;
+        profile.speed = (stepper.targetPosition() == profile.topPos) ? 3000 : 6000;
+        profile.acceleration = (stepper.targetPosition() == profile.topPos) ? 1000 : 2000;
+        
         break;
       case 4:
         // Shaker - Small amplitude, fast speed
