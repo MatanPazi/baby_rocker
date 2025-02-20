@@ -65,6 +65,8 @@ unsigned long lastDistanceCheck = 0;
 unsigned long lastSoundCheck = 0;
 unsigned long lastDigitalInputCheck = 0;
 enum distanceStates readDistanceState = READ_DISTANCE_NEEDED;
+profileData profile;
+
 
 int debug = 0;
 
@@ -173,6 +175,8 @@ void setup() {
     stepper.setCurrentPosition(MIDDLE_POSITION);
     digitalWrite(DRIVER_ENABLE_PIN, LOW);         // Enable motor in debug mode.
   }
+  
+
 }
 
 void loop() {
@@ -375,73 +379,67 @@ void updateStepperMotion() {
     unsigned long elapsedTime = millis() - profileStartTime;
     static unsigned long prevElapsedTime = 0;
     static int stuckCounter = 0;
-    static profileData profile;
 
-    if (stepper.distanceToGo() == 0) 
-    {                     
-        if (readDistanceState == READ_DISTANCE_NOT_NEEDED)
-        {
-          Serial.print("Elapsed time [ms]: ");
-          Serial.println(elapsedTime - prevElapsedTime);
-          Serial.print("Estimated position: ");
-          Serial.println(currentPosition);            
-          prevElapsedTime = elapsedTime;
-          readDistanceState = READ_DISTANCE_NEEDED;          
-        }
-        else if (readDistanceState == READ_DISTANCE_FINISHED)
-        {
-          if ((targetPosition == profile.topPos) &&   /* Close enough to top position */
-              (currentPosition < (profile.topPos + DISTANCE_MARGIN)) &&
-              (currentPosition > (profile.topPos - DISTANCE_MARGIN)))   
-          {
-            stepper.moveTo(profile.bottomPos);
-            targetPosition = stepper.targetPosition();
-            stuckCounter = 0;
-          }
-          else if ((targetPosition == profile.bottomPos) &&     /* Close enough to bottom position */
-                   (currentPosition > (profile.bottomPos - DISTANCE_MARGIN)) &&
-                   (currentPosition < (profile.bottomPos + DISTANCE_MARGIN)))
-          {
-            stepper.moveTo(profile.topPos);
-            targetPosition = stepper.targetPosition();
-            stuckCounter = 0;
-          }     
-          else  /* Didn't reach destination, try reaching the top position */
-          {
-            stepper.moveTo(profile.topPos); 
-            targetPosition = stepper.targetPosition();
-            stuckCounter++;
-          }
-          readDistanceState = READ_DISTANCE_NOT_NEEDED;
-        }
-        else    /* readDistanceState == READ_DISTANCE_NEEDED */
-        {
-          /* Do nothing.
-             Waiting for readDistance() to run and update readDistanceState to READ_DISTANCE_FINISHED */
-        }  
-        profile = calculateProfile(currentPosition, elapsedTime);
-    }    
-    
-    if (elapsedTime >= PROFILE_DURATION + SLOWDOWN_DURATION)
-    {
+    // Stopping conditions
+    if (elapsedTime >= PROFILE_DURATION + SLOWDOWN_DURATION) {
         motionActive = false;
         prevElapsedTime = 0;
+        stepper.setMaxSpeed(0);
         digitalWrite(DRIVER_ENABLE_PIN, HIGH);
         Serial.println("Motion completed and stopped");
+        return;
     }
-    else if (stuckCounter >= STUCK_COUNTER_MAX)
-    {
+    if (stuckCounter >= STUCK_COUNTER_MAX) {
         motionActive = false;
         prevElapsedTime = 0;
+        stepper.setMaxSpeed(0);
         digitalWrite(DRIVER_ENABLE_PIN, HIGH);
         Serial.println("Motion stopped, system seems stuck");
         stuckCounter = 0;
+        return;
+    }
+
+    if (stepper.distanceToGo() == 0) {
+        if (readDistanceState == READ_DISTANCE_NOT_NEEDED) {
+            Serial.print("Elapsed time [ms]: ");
+            Serial.println(elapsedTime - prevElapsedTime);
+            Serial.print("Estimated position: ");
+            Serial.println(currentPosition);
+            prevElapsedTime = elapsedTime;
+            readDistanceState = READ_DISTANCE_NEEDED;
+        }
+        else if (readDistanceState == READ_DISTANCE_FINISHED) {
+            if ((targetPosition == profile.topPos) && 
+                (currentPosition < (profile.topPos + DISTANCE_MARGIN)) &&
+                (currentPosition > (profile.topPos - DISTANCE_MARGIN))) {
+                stepper.moveTo(profile.bottomPos);
+                targetPosition = stepper.targetPosition();
+                stuckCounter = 0;
+            }
+            else if ((targetPosition == profile.bottomPos) && 
+                     (currentPosition > (profile.bottomPos - DISTANCE_MARGIN)) &&
+                     (currentPosition < (profile.bottomPos + DISTANCE_MARGIN))) {
+                stepper.moveTo(profile.topPos);
+                targetPosition = stepper.targetPosition();
+                stuckCounter = 0;
+            }
+            else {
+                stepper.moveTo(profile.topPos);
+                targetPosition = stepper.targetPosition();
+                stuckCounter++;
+            }
+
+            // Update global profile after setting target
+            calculateProfile(currentPosition, elapsedTime);
+            stepper.setMaxSpeed(profile.speed);
+            stepper.setAcceleration(profile.acceleration);
+
+            readDistanceState = READ_DISTANCE_NOT_NEEDED;
+        }
     }
 }
 
-profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
-    profileData profile;
-    
+void calculateProfile(long currentPosition, unsigned long elapsedTime) {
     // Determine base speed based on current profile and direction
     switch (currentRotaryState) {
       case 1:
@@ -500,12 +498,7 @@ profileData calculateProfile(long currentPosition, unsigned long elapsedTime) {
           uint32_t slowdownFactor = 1024 - ((slowdownTime << 10) >> SLOWDOWN_SHIFT);
           profile.speed = (profile.speed * slowdownFactor) >> 10;          
         }
-    }    
-
-    stepper.setMaxSpeed(profile.speed);
-    stepper.setAcceleration(profile.acceleration); 
-
-    return profile;
+    }
 }
 
 
