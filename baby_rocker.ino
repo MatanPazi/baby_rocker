@@ -445,7 +445,7 @@ void calculateProfile(long currentPosition, unsigned long elapsedTime) {
     // Determine base speed based on current profile and direction
     switch (currentRotaryState) {
       case 1:
-        // 1 Hz heartbeat - medium amplitude
+        // 1[Hz] heartbeat - medium amplitude
         profile.topPosDist = 80;
         profile.bottomPosDist = 70;
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
@@ -454,31 +454,31 @@ void calculateProfile(long currentPosition, unsigned long elapsedTime) {
         profile.acceleration = 20000;
         break;
       case 2:
-        // Different speeds for up and down        
-        profile.topPosDist = 80;
-        profile.bottomPosDist = 65;
+        // Ocean waves big amplitude 0.25[Hz]
+        profile.topPosDist = 90;
+        profile.bottomPosDist = 60;
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
-        profile.speed = (stepper.targetPosition() == profile.topPos) ? 1000 : 200;
-        profile.acceleration = 10000;
+        profile.speed = (stepper.targetPosition() == profile.topPos) ? 2000 : 4000;
+        profile.acceleration = 1000;
         break;
       case 4:
-        // Shaker
+        // Shaker - Small amplitude, fast speed
         profile.topPosDist = 79;
         profile.bottomPosDist = 75;
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
-        profile.speed = (stepper.targetPosition() == profile.topPos) ? 14000 : 14000;        
+        profile.speed = (stepper.targetPosition() == profile.topPos) ? 14000 : 14000;
         profile.acceleration = 30000;
         break;
       case 8:
-        // High speed      
+        // Walking - Slow up, fast down    
         profile.topPosDist = 80;
         profile.bottomPosDist = 65;
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
-        profile.speed = map(currentPosition, profile.bottomPos, profile.topPos, 200, 1000);        
-        profile.acceleration = 10000;
+        profile.speed = (stepper.targetPosition() == profile.topPos) ? 2000 : 14000;
+        profile.acceleration = 20000;
         break;        
       default:        
         profile.topPosDist = 80;
@@ -486,7 +486,7 @@ void calculateProfile(long currentPosition, unsigned long elapsedTime) {
         profile.topPos = profile.topPosDist * DISTANCE_TO_STEPS;
         profile.bottomPos = profile.bottomPosDist * DISTANCE_TO_STEPS;
         profile.speed = 500;
-        profile.acceleration = 10000;
+        profile.acceleration = 1000;
     }
     
     // Apply slowdown factor
